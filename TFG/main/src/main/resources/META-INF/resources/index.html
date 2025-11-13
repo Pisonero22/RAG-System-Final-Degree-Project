@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Quarkus Chat!</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.24.0/css/patternfly.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.24.0/css/patternfly-additions.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <style>
+        body {
+            background-color: #f9f9f9;
+            font-family: "Segoe UI", sans-serif;
+        }
+
+        .chat-container {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        #chat {
+            resize: none;
+            overflow-y: auto;
+            height: 300px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 1em;
+            background-color: #f4f4f4;
+            font-size: 14px;
+        }
+
+        .user {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .system-user {
+            font-weight: bold;
+            color: deeppink;
+        }
+
+        .system-message {
+            font-style: italic;
+            color: gray;
+        }
+
+        input[type="text"] {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            margin-left: 10px;
+            border-radius: 6px;
+        }
+
+        .navbar-pf {
+            background-color: #292e34;
+            color: white;
+        }
+
+        .navbar-brand p {
+            color: white;
+            font-size: 18px;
+            margin-top: 12px;
+        }
+        .upload-btn {
+            background-color: #17a2b8;
+            color: white;
+            font-weight: bold;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 123, 255, 0.1);
+            font-size: 13px;
+            padding: 6px 12px;
+        }
+
+        .upload-btn:hover {
+            background-color: #138496;
+            transform: scale(1.05);
+            color: white;
+        }
+
+
+    </style>
+</head>
+
+<body>
+<nav class="navbar navbar-default navbar-pf">
+    <div class="navbar-header">
+        <a class="navbar-brand" href="/">
+            <p><strong>TFG CHAT</strong></p>
+        </a>
+    </div>
+    <div class="nav navbar-nav navbar-right" style="padding: 12px 20px;">
+        <label for="llm-select" style="color: white; margin-right: 10px;">Modelo:</label>
+        <select id="llm-select" class="form-control" style="display: inline-block; width: auto;">
+            <option value="" disabled selected>Selecciona un modelo</option>
+            <option value="ollama">Ollama → Llama 3.2</option>
+            <option value="openai">OpenAI → ChatGPT 4</option>
+            <option value="deepseek">DeepSeek → r1:7b</option>
+            <option value="mistral">Mistral → Instruct</option>
+        </select>
+
+    </div>
+</nav>
+
+
+<div class="container chat-container">
+
+    <div class="row form-group">
+        <div class="col-md-4">
+            <input id="name" class="form-control" type="text" placeholder="Tu nombre">
+        </div>
+        <div class="col-md-2">
+            <button id="connect" class="btn btn-success btn-block">Conectar</button>
+        </div>
+    </div>
+
+    <div class="row form-group">
+        <div class="col-md-12">
+            <div id="chat"></div>
+        </div>
+    </div>
+
+    <div class="row form-group">
+        <div class="col-md-6">
+            <input id="msg" class="form-control" type="text" placeholder="Escribe tu mensaje">
+        </div>
+        <div class="col-md-2">
+            <button id="send" class="btn btn-primary btn-block" disabled>Enviar</button>
+        </div>
+        <div class="col-md-2">
+            <button id="ingest" class="btn btn-warning btn-block" disabled>Ingestar Datos</button>
+        </div>
+        <div class="col-md-2">
+            <button id="reset" class="btn btn-danger btn-block" disabled>Reset Storage</button>
+        </div>
+    </div>
+    <div class="row form-group" style="margin-top: 10px;">
+        <div class="col-md-12 text-right">
+            <input type="file" id="file-upload"
+                   class="form-control input-sm"
+                   accept=".pdf,.txt,.csv"
+                   style="font-size: 13px; display: inline-block; width: auto; margin-right: 137px;">
+            <button id="upload" class="btn btn-info upload-btn btn-sm" disabled>
+                <i class="fas fa-upload"></i> Subir Archivo
+            </button>
+        </div>
+    </div>
+
+
+
+
+
+</div>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.24.0/js/patternfly.min.js"></script>
+
+<script>
+    let connected = false;
+    let socket;
+    let username = "";
+
+    $(document).ready(function () {
+        $("#connect").click(connect);
+        $("#send").click(send);
+        $("#name").keypress(e => { if (e.which === 13) connect(); });
+        $("#msg").keypress(e => { if (e.which === 13) send(); });
+
+        $("#ingest").click(() => {
+            const llm = $("#llm-select").val();
+            if (!llm) {
+                appendSystemMessage("Selecciona un modelo antes de ingestar.");
+                return;
+            }
+
+            $.ajax({
+                url: "/service/ingest/",
+                type: "GET",
+                dataType: "text",
+                success: data => {
+                    appendSystemMessage("Ingestión completada: " + data);
+                },
+                error: (xhr, status, error) => {
+                    appendSystemMessage("Error en la ingesta: " + error);
+                }
+            });
+        });
+
+        $("#reset").click(() => {
+            const llm = $("#llm-select").val();
+            if (!llm) {
+                appendSystemMessage("Selecciona un modelo antes de resetear.");
+                return;
+            }
+
+            $.ajax({
+                url: "/service/reset/",
+                type: "GET",
+                dataType: "text",
+                success: data => {
+                    setTimeout(() => location.reload(), 250);
+                    appendSystemMessage("Reset completado: " + data);
+                },
+                error: (xhr, status, error) => {
+                    appendSystemMessage("Error en el reset: " + error);
+                }
+            });
+        });
+
+
+        $("#connect").prop("disabled", true);
+        $("#ingest").prop("disabled", true);
+        $("#reset").prop("disabled", true);
+
+        $("#llm-select").on("change", function () {
+            const hasLLM = $(this).val() !== "";
+            $("#connect").prop("disabled", !hasLLM);
+            $("#ingest").prop("disabled", !hasLLM);
+            $("#reset").prop("disabled", !hasLLM);
+        });
+
+        $("#file-upload").on("change", function () {
+            $("#upload").prop("disabled", !this.files.length);
+        });
+
+        $("#upload").click(function () {
+            const file = $("#file-upload")[0].files[0];
+            const llm = $("#llm-select").val();
+
+            if (!file) {
+                appendSystemMessage("Selecciona un archivo para subir.");
+                return;
+            }
+            if (!llm) {
+                appendSystemMessage("Selecciona un modelo antes de subir el archivo.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("fileName", file.name);
+
+
+            $.ajax({
+                url: "/service/upload",
+                type: "POST",
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: data => {
+                    appendSystemMessage("Archivo subido correctamente: " + data);
+                    $("#file-upload").val("");
+                    $("#upload").prop("disabled", true);
+                },
+                error: (xhr, status, error) => {
+                    appendSystemMessage("Error al subir archivo: " + error);
+                }
+            });
+        });
+
+    });
+
+    function connect() {
+        if (!connected) {
+            username = $("#name").val();
+            socket = new WebSocket("ws://" + location.host + "/chat/" + username);
+
+            socket.onopen = () => {
+                connected = true;
+                $("#send").prop("disabled", false);
+                $("#connect").prop("disabled", true);
+                $("#name").prop("disabled", true);
+                $("#msg").focus();
+            };
+
+            socket.onmessage = m => {
+                const chatMessage = JSON.parse(m.data);
+                switch (chatMessage.type) {
+                    case "USER_JOINED":
+                        appendSystemMessage(`${chatMessage.from} se unió al chat.`);
+                        break;
+                    case "USER_LEFT":
+                        appendSystemMessage(`${chatMessage.from} salió del chat.`);
+                        break;
+                    case "CHAT_MESSAGE":
+                        appendUserMessage(chatMessage.from, chatMessage.message);
+                        break;
+                }
+            };
+        }
+    }
+
+    function send() {
+        if (connected) {
+            const msg = $("#msg").val();
+            const llm = $("#llm-select").val(); // Nuevo
+
+            const chatMessage = {
+                type: "CHAT_MESSAGE",
+                from: username,
+                message: msg,
+                llm: llm
+            };
+
+            socket.send(JSON.stringify(chatMessage));
+            $("#msg").val("");
+        }
+    }
+
+    function appendSystemMessage(message) {
+        $("#chat").append(`<div class="system-message">${message}</div><br>`);
+        scrollToBottom();
+    }
+
+    function appendUserMessage(from, message) {
+        $("#chat").append(`<div><span class="user">${from}</span>: ${message}</div><br>`);
+        scrollToBottom();
+    }
+
+    function scrollToBottom() {
+        const chat = $('#chat');
+        chat.scrollTop(chat[0].scrollHeight);
+    }
+</script>
+
+</body>
+</html>

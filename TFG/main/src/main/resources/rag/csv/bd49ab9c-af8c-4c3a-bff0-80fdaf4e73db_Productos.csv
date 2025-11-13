@@ -1,0 +1,24 @@
+ID,Nombre,Descripción,Precio (€)
+1,Auriculares,Auriculares inalámbricos con cancelación de ruido y batería de 20 horas.,199.99
+2,Portátil,"Portátil con procesador Intel i7, 16GB de RAM y pantalla Retina.",1299.0
+3,Smartphone,"Smartphone con cámara de 108MP, pantalla AMOLED y carga rápida.",899.99
+4,Tablet,"Tablet con pantalla de 10.5 pulgadas, 128GB de almacenamiento y batería de larga duración",349.99
+5,Smartwatch,"Reloj inteligente con monitor de ritmo cardíaco, GPS integrado y resistencia al agua",229.99
+6,Cámara,"Cámara réflex digital con sensor de 24MP, grabación 4K y lente intercambiable",649.99
+7,TV 4K,Televisor 4K de 55 pulgadas con HDR10+ y sistema operativo Smart TV,599.0
+8,Teclado mecánico,Teclado mecánico RGB con switches personalizables y diseño ergonómico,89.99
+9,Ratón inalámbrico,Ratón ergonómico inalámbrico con batería recargable y sensor de alta precisión,49.99
+10,Impresora,Impresora multifunción a color con Wi-Fi y escáner integrado,129.99
+11,Altavoz Bluetooth,Altavoz portátil con sonido envolvente 360° y 20 horas de autonomía,79.99
+12,Monitor,Monitor LED de 27 pulgadas con resolución QHD y tasa de refresco de 144Hz,299.99
+13,Router WiFi,Router WiFi 6 de doble banda con cobertura mejorada y seguridad avanzada,139.99
+14,Disco SSD,Unidad SSD de 1TB con conexión NVMe y velocidad de lectura de hasta 3500MB/s,119.99
+15,Consola,Consola de videojuegos de última generación con mando inalámbrico incluido,499.99
+16,Drone,"Drone con cámara 4K, estabilización en 3 ejes y 30 minutos de vuelo",449.99
+17,Proyector,Proyector portátil con resolución Full HD y conectividad HDMI y Wi-Fi,189.99
+18,Cafetera,Cafetera espresso automática con molinillo integrado y pantalla táctil,399.99
+19,Refrigerador,Refrigerador inteligente con control por app y sistema de ahorro energético,899.0
+20,Lavadora,Lavadora de carga frontal con 8 kg de capacidad y programas eco,479.0
+21,Aspiradora robot,Aspiradora robot con mapeo inteligente y control por voz,259.99
+22,Ventilador,Ventilador de torre silencioso con temporizador y control remoto,69.99
+23,Cargador portátil,Power bank de 20 000 mAh con carga rápida y doble salida USB,39.99
