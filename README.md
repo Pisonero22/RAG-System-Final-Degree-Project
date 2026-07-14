@@ -4,7 +4,7 @@ Bachelor's Thesis (TFG) in **Computer Engineering** at the **Universidad Pontifi
 
 **Thesis title:** *LangChain4j: Integration of Quarkus and LLMs using RAG and WebSockets*
 
-Real-time chat application that combines **Retrieval-Augmented Generation (RAG)** with multiple Large Language Model (LLM) providers. Documents are indexed as embeddings in **Redis Stack**, and the assistant answers using context retrieved from that knowledge base.
+Real-time chat application that combines Retrieval-Augmented Generation (RAG) with multiple Large Language Model (LLM) providers. Documents are indexed as embeddings in Redis Stack, and the assistant answers using context retrieved from that knowledge base.
 
 ---
 
@@ -21,6 +21,7 @@ Real-time chat application that combines **Retrieval-Augmented Generation (RAG)*
 - [Project Structure](#project-structure)
 - [Web UI Usage](#web-ui-usage)
 - [Build & Package](#build--package)
+- [Good to Know](#good-to-know)
 - [Author](#author)
 - [License](#license)
 
@@ -28,17 +29,12 @@ Real-time chat application that combines **Retrieval-Augmented Generation (RAG)*
 
 ## Features
 
-- Real-time chat via **WebSockets** (`/chat/{username}`)
-- **RAG** with semantic retrieval from Redis (RediSearch + embeddings)
-- **Multiple LLM providers:**
-  - **Ollama** → Llama 3.2 (default)
-  - **OpenAI** → GPT-4
-  - **DeepSeek** → deepseek-r1:7b (via Ollama)
-  - **Mistral** → mistral:instruct (via Ollama)
-- Document ingestion for `.txt`, `.csv`, and `.pdf` files
-- Built-in web UI with model selector, file upload, and ingest/reset actions
-- **Prompt injection guardrails** (LangChain4j Input Guardrails)
-- Modular architecture with swappable LLM and storage providers
+- Real-time chat over WebSockets (`/chat/{username}`)
+- RAG retrieval backed by Redis Stack (RediSearch + vector similarity)
+- Four selectable LLM backends: **Ollama** (Llama 3.2), **OpenAI** (GPT-4), **DeepSeek** (r1:7b) and **Mistral** (Instruct) — the last two also run through Ollama, just with different models
+- Upload your own `.txt`, `.csv` or `.pdf` files and add them to the knowledge base on the fly
+- Small web UI (PatternFly + Bootstrap) with a model picker, connect/send, upload, and ingest/reset controls
+- A prompt-injection detection guardrail built with LangChain4j (implemented, though not switched on by default — see [Good to Know](#good-to-know))
 
 ---
 
@@ -46,7 +42,7 @@ Real-time chat application that combines **Retrieval-Augmented Generation (RAG)*
 
 | Category       | Technology |
 |----------------|------------|
-| Framework      | [Quarkus](https://quarkus.io/) 3.19 |
+| Framework      | [Quarkus](https://quarkus.io/) 3.19.1 |
 | AI / LLM       | [LangChain4j](https://github.com/langchain4j/langchain4j) 1.0.0-beta2 |
 | Language       | Java 21 |
 | Vector Store   | Redis Stack (RediSearch) |
@@ -73,17 +69,19 @@ Real-time chat application that combines **Retrieval-Augmented Generation (RAG)*
                          ▼                 ▼                 ▼
                   ┌────────────┐   ┌────────────┐   ┌────────────┐
                   │   Ollama   │   │   OpenAI   │   │   Redis    │
-                  │   (LLMs)   │   │  (GPT-4)   │   │(Embeddings)│
+                  │ Llama 3.2  │   │   GPT-4    │   │(Embeddings │
+                  │ DeepSeek,  │   │            │   │ + vectors) │
+                  │  Mistral   │   │            │   │            │
                   └────────────┘   └────────────┘   └────────────┘
 ```
 
 ### RAG Pipeline
 
-1. Documents (TXT, CSV, PDF) are loaded from `main/src/main/resources/rag/`
-2. They are split into chunks and converted into embeddings
-3. Vectors are stored in **Redis Stack**
-4. On each query, the most relevant chunks are retrieved (similarity ≥ 0.78)
-5. Context is injected into the prompt and the selected LLM generates the answer
+1. Documents (txt, csv, pdf) are loaded from `main/src/main/resources/rag/`
+2. They're split into chunks (256 characters, 64 overlap) and turned into embeddings
+3. The vectors go into Redis Stack
+4. For each question, the top 2 chunks with similarity ≥ 0.78 are retrieved
+5. Those chunks get stitched into the prompt before it's sent to whichever model is selected
 
 ---
 
@@ -102,6 +100,7 @@ Real-time chat application that combines **Retrieval-Augmented Generation (RAG)*
 ollama pull llama3.2
 ollama pull mxbai-embed-large
 ollama pull bge-large
+ollama pull nomic-embed-text
 ollama pull mistral:instruct
 ollama pull deepseek-r1:7b
 ```
@@ -112,7 +111,7 @@ ollama pull deepseek-r1:7b
 
 ### Option A — Full deploy script (recommended)
 
-Downloads models, starts Redis, and launches Quarkus in dev mode:
+Pulls the Ollama models, starts Redis, and launches Quarkus in dev mode:
 
 ```bash
 chmod +x deploy.sh
@@ -143,24 +142,15 @@ cd main
 ./mvnw quarkus:dev
 ```
 
+Redis Stack also exposes RedisInsight on **http://localhost:8001** if you want to look at the index directly.
+
 ---
 
 ## Configuration
 
 Main config file: `main/src/main/resources/application.properties`
 
-### Default provider (Ollama)
-
-```properties
-quarkus.langchain4j.chat-model.provider=ollama
-quarkus.langchain4j.embedding-model.provider=ollama
-quarkus.langchain4j.ollama.embedding-model.model-id=mxbai-embed-large
-quarkus.langchain4j.redis.dimension=1024
-```
-
-### Switch to OpenAI
-
-Uncomment and set in `application.properties`:
+As checked in, the project is set up to use **OpenAI**, so you'll need to add your API key before it runs:
 
 ```properties
 quarkus.langchain4j.openai.api-key=YOUR_API_KEY
@@ -171,7 +161,16 @@ quarkus.langchain4j.redis.dimension=1536
 quarkus.langchain4j.openai.embedding-model.model-name=text-embedding-ada-002
 ```
 
-> **Important:** If you change the embedding provider, run **Reset Storage** from the web UI to reindex documents with the new vector dimensions.
+To run everything locally instead, comment out the OpenAI block above and uncomment the Ollama one:
+
+```properties
+quarkus.langchain4j.chat-model.provider=ollama
+quarkus.langchain4j.embedding-model.provider=ollama
+quarkus.langchain4j.ollama.embedding-model.model-id=mxbai-embed-large
+quarkus.langchain4j.redis.dimension=1024
+```
+
+> **Important:** whenever you switch the embedding provider, hit **Reset Storage** from the web UI — OpenAI's `text-embedding-ada-002` and Ollama's `mxbai-embed-large` produce vectors of different sizes (1536 vs 1024), so the old index won't match anymore.
 
 ---
 
@@ -272,10 +271,20 @@ cd main
 
 ---
 
+## Good to Know
+
+A few implementation details worth knowing if you dig into the code:
+
+- The prompt-injection guardrail (`PromptInjectionGuard` + `PromptInjectionDetectionService`) is fully implemented, but the `@InputGuardrails` annotation on `RagAsssistant` is commented out, so it isn't active yet. Uncomment it to turn on validation.
+- Retrieval always uses the embedding model configured globally in `application.properties`, not the one tied to whichever chat provider is selected in the dropdown — the per-provider `getEmbeddingModel()` methods aren't wired into the retrieval flow yet.
+- `deploy.sh` doesn't currently pull `nomic-embed-text`, which the DeepSeek configuration needs for embeddings. Pull it manually the first time (`ollama pull nomic-embed-text`) or add it to the script.
+
+---
+
 ## Author
 
-**[Your Name]**  
-Computer Engineering — Universidad Pontificia de Salamanca (UPSA)  
+**Alejandro**
+Computer Engineering — Universidad Pontificia de Salamanca (UPSA)
 Bachelor's Thesis, 2025/2026
 
 ---
