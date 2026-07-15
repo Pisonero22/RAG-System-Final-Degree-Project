@@ -1,0 +1,19 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Quarkus
+.quarkus/
+
+# Secretos locales
+**/application-local.properties
+.env
+
+# macOS
+.DS_Store

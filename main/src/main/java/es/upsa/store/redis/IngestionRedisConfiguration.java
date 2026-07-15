@@ -47,6 +47,7 @@ public class IngestionRedisConfiguration implements StorageProvider {
     @Inject
     DocumentFromFilePDF documentFromFilePDF;
 
+
     @ConfigProperty(name = "rag.location.txt")
     Path txtFile;
 
@@ -69,7 +70,7 @@ public class IngestionRedisConfiguration implements StorageProvider {
                 jedis.del(keys.toArray(new String[0]));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Error al limpiar caché de ingesta", e);
         }
     }
 

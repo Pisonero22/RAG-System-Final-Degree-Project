@@ -174,23 +174,19 @@
         $("#name").keypress(e => { if (e.which === 13) connect(); });
         $("#msg").keypress(e => { if (e.which === 13) send(); });
 
+        const ADMIN_KEY = prompt("Introduce la clave de administrador para esta sesión:") || "";
+
         $("#ingest").click(() => {
             const llm = $("#llm-select").val();
-            if (!llm) {
-                appendSystemMessage("Selecciona un modelo antes de ingestar.");
-                return;
-            }
+            if (!llm) { appendSystemMessage("Selecciona un modelo antes de ingestar."); return; }
 
             $.ajax({
                 url: "/service/ingest/",
                 type: "GET",
                 dataType: "text",
-                success: data => {
-                    appendSystemMessage("Ingestión completada: " + data);
-                },
-                error: (xhr, status, error) => {
-                    appendSystemMessage("Error en la ingesta: " + error);
-                }
+                headers: { "X-API-KEY": ADMIN_KEY },
+                success: data => appendSystemMessage("Ingestión completada: " + data),
+                error: (xhr, status, error) => appendSystemMessage("Error en la ingesta: " + error)
             });
         });
 
@@ -202,7 +198,7 @@
             }
 
             $.ajax({
-                url: "/service/reset/",
+                url: "/service/reset",
                 type: "GET",
                 dataType: "text",
                 success: data => {
@@ -291,7 +287,7 @@
                         appendSystemMessage(`${chatMessage.from} salió del chat.`);
                         break;
                     case "CHAT_MESSAGE":
-                        appendUserMessage(chatMessage.from, chatMessage.message);
+                        appendUserMessage(chatMessage.from, chatMessage.message, chatMessage.from === chatMessage.llm);
                         break;
                 }
             };
@@ -315,15 +311,24 @@
         }
     }
 
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     function appendSystemMessage(message) {
-        $("#chat").append(`<div class="system-message">${message}</div><br>`);
+        $("#chat").append(`<div class="system-message">${escapeHtml(message)}</div><br>`);
         scrollToBottom();
     }
 
-    function appendUserMessage(from, message) {
-        $("#chat").append(`<div><span class="user">${from}</span>: ${message}</div><br>`);
+    function appendUserMessage(from, message, isAi) {
+        const userClass = isAi ? "system-user" : "user";
+        $("#chat").append(`<div><span class="${userClass}">${escapeHtml(from)}</span>: ${escapeHtml(message)}</div><br>`);
         scrollToBottom();
     }
+
 
     function scrollToBottom() {
         const chat = $('#chat');

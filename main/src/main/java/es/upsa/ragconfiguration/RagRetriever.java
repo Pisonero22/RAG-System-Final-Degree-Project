@@ -1,4 +1,4 @@
-package es.upsa.ragConfiguration;
+package es.upsa.ragconfiguration;
 
 import java.util.List;
 import io.quarkiverse.langchain4j.redis.RedisEmbeddingStore;
@@ -12,7 +12,6 @@ import dev.langchain4j.rag.content.injector.ContentInjector;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 
 import org.slf4j.Logger;
