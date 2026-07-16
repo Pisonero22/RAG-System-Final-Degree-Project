@@ -11,6 +11,8 @@ import es.upsa.store.readerFiles.DocumentFromFileCSV;
 import es.upsa.store.readerFiles.DocumentFromFilePDF;
 import es.upsa.store.readerFiles.DocumentFromFileTxt;
 import io.quarkiverse.langchain4j.redis.RedisEmbeddingStore;
+import io.quarkus.redis.datasource.RedisDataSource;
+import io.quarkus.redis.datasource.keys.KeyScanArgs;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
@@ -20,6 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.commands.ProtocolCommand;
+import redis.clients.jedis.params.ScanParams;
+import redis.clients.jedis.resps.ScanResult;
 import redis.clients.jedis.util.SafeEncoder;
 
 
@@ -57,20 +61,18 @@ public class IngestionRedisConfiguration implements StorageProvider {
     @ConfigProperty(name = "rag.location.pdf")
     Path pdfFiles;
 
+    @Inject
+    RedisDataSource redis;
 
     @Override
     public void clearIngestionCache() {
-        // Abre una conexión a Redis usando Jedis (host local, puerto 6379)
-        try (Jedis jedis = new Jedis("localhost", 6379)) {
-            // Busca todas las claves que comienzan con "embedding:"
-            var keys = jedis.keys("embedding:*");
-            // Si hay claves que coinciden con el patrón
-            if (keys != null && !keys.isEmpty()) {
-                // Elimina todas las claves encontradas (solo los documentos, pero no el índice RedisSearch)
-                jedis.del(keys.toArray(new String[0]));
+        var keyCommands = redis.key();
+        var cursor = keyCommands.scan(new KeyScanArgs().match("embedding:*").count(500));
+        while (cursor.hasNext()) {
+            var batch = cursor.next();
+            if (!batch.isEmpty()) {
+                keyCommands.del(batch.toArray(new String[0]));
             }
-        } catch (Exception e) {
-            log.error("Error al limpiar caché de ingesta", e);
         }
     }
 
