@@ -31,10 +31,7 @@ public class FileUploadService {
     @ConfigProperty(name = "rag.location.pdf")
     Path pdfDir;
 
-    @POST
-    @jakarta.ws.rs.Path("/upload")
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    @Produces(MediaType.TEXT_PLAIN)
+
     public Path subirArchivo(@RestForm("file") InputStream contenido,
                                  @RestForm("fileName") String nombreArchivo) throws IOException {
 
