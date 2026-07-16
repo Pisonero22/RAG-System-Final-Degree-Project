@@ -1,6 +1,6 @@
 package es.upsa.websockets;
 
-import es.upsa.ServicioAI;
+import es.upsa.rag.RagChatService;
 import es.upsa.store.ChatMemoryStore;
 import io.quarkus.websockets.next.OnClose;
 import io.quarkus.websockets.next.OnOpen;
@@ -13,7 +13,7 @@ import jakarta.inject.Inject;
 public class ChatWebSocket {
 
     @Inject
-    ServicioAI servicioAI;
+    RagChatService ragChatService;
     @Inject
     ChatMemoryStore chatMemoryStore;
 
@@ -43,7 +43,7 @@ public class ChatWebSocket {
         connection.broadcast().sendTextAndAwait(userMsg);
 
         // Obtener respuesta de la IA y también enviarla a todos los clientes
-        String responseWithRag2 = servicioAI.getIngestResponseWithRag(username,message.message, message.llm);
+        String responseWithRag2 = ragChatService.getIngestResponseWithRag(username,message.message, message.llm);
         ChatMessage aiMsg = new ChatMessage(MessageType.CHAT_MESSAGE, message.llm, responseWithRag2,message.llm);
         connection.broadcast().sendTextAndAwait(aiMsg);
     }
