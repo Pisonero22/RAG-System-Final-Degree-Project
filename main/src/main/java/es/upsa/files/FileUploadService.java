@@ -35,50 +35,34 @@ public class FileUploadService {
     @jakarta.ws.rs.Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.TEXT_PLAIN)
-    public Response subirArchivo(@RestForm("file") InputStream archivo,
-                                 @RestForm("fileName") String nombreArchivo) {
-        try {
-            if (nombreArchivo == null || archivo == null) {
-                return Response.status(Response.Status.BAD_REQUEST).entity("Faltan datos").build();
-            }
+    public Path subirArchivo(@RestForm("file") InputStream contenido,
+                                 @RestForm("fileName") String nombreArchivo) throws IOException {
 
-            String extension = getExtension(nombreArchivo);
-
-            Path rutaConfigurada = resolveDir(extension);
-
-            if (rutaConfigurada == null) {
-                return Response.status(Response.Status.BAD_REQUEST).entity("Extensión no válida").build();
-            }
-
-            Path carpetaBase = rutaConfigurada.toAbsolutePath().normalize();
-            Files.createDirectories(carpetaBase);
-
-            String nombreSeguro;
-            try {
-                nombreSeguro = sanitizeFileName(nombreArchivo);
-            } catch (IllegalArgumentException e) {
-                return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
-            }
-
-            Path destino = carpetaBase.resolve(UUID.randomUUID() + "_" + nombreSeguro).normalize();
-
-            if (!destino.startsWith(carpetaBase)) {
-                return Response.status(Response.Status.BAD_REQUEST).entity("Ruta de destino no válida").build();
-            }
-
-            try (OutputStream out = new FileOutputStream(destino.toFile())) {
-                byte[] buffer = new byte[8192];
-                int bytesLeidos;
-                while ((bytesLeidos = archivo.read(buffer)) != -1) {
-                    out.write(buffer, 0, bytesLeidos);
-                }
-            }
-
-            return Response.ok("Archivo guardado en: " + destino).build();
-
-        } catch (IOException e) {
-            return Response.serverError().entity("Error al guardar: " + e.getMessage()).build();
+        if (contenido == null || nombreArchivo == null) {
+            throw new IllegalArgumentException("Faltan datos");
         }
+
+        Path dirDestino = resolveDir(getExtension(nombreArchivo));
+        if (dirDestino == null) {
+            throw new IllegalArgumentException("Extensión no válida");
+        }
+
+        Path carpetaBase = dirDestino.toAbsolutePath().normalize();
+        Files.createDirectories(carpetaBase);
+
+        String nombreSeguro = sanitizeFileName(nombreArchivo);
+        Path destino = carpetaBase.resolve(UUID.randomUUID() + "_" + nombreSeguro).normalize();
+
+        if (!destino.startsWith(carpetaBase)) {
+            throw new IllegalArgumentException("Ruta de destino no válida");
+        }
+
+        try (OutputStream out = Files.newOutputStream(destino)) {
+            contenido.transferTo(out);
+        }
+        return destino;
+
+
     }
 
 
