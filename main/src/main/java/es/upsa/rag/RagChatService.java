@@ -48,6 +48,10 @@ public class RagChatService {
 
 
     public ModelProvider getProviderByName(String name) {
+
+        if (name == null || name.isBlank()) {
+            return ollamaProvider;
+        }
         return switch (name.toLowerCase()) {
             case "openai" -> openAIProvider;
             case "ollama" -> ollamaProvider;

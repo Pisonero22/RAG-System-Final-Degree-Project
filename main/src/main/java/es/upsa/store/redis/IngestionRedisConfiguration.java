@@ -13,17 +13,13 @@ import es.upsa.store.readerFiles.DocumentFromFileTxt;
 import io.quarkiverse.langchain4j.redis.RedisEmbeddingStore;
 import io.quarkus.redis.datasource.RedisDataSource;
 import io.quarkus.redis.datasource.keys.KeyScanArgs;
-import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.commands.ProtocolCommand;
-import redis.clients.jedis.params.ScanParams;
-import redis.clients.jedis.resps.ScanResult;
 import redis.clients.jedis.util.SafeEncoder;
 
 
@@ -63,6 +59,9 @@ public class IngestionRedisConfiguration implements StorageProvider {
 
     @Inject
     RedisDataSource redis;
+
+    @ConfigProperty(name = "rag.redis.index")
+    String indexName;
 
     @Override
     public void clearIngestionCache() {
@@ -125,6 +124,15 @@ public class IngestionRedisConfiguration implements StorageProvider {
             log.error("Error al resetear Redis: ", e);
         }
 
+        ingest();
+
+        try {
+            redis.execute("FT.DROPINDEX", indexName, "DD");
+            log.info("Índice '{}' eliminado.", indexName);
+        } catch (Exception e) {
+            log.warn("No se pudo eliminar el índice (puede que no exista): {}", e.getMessage());
+        }
+        clearIngestionCache();
         ingest();
     }
 

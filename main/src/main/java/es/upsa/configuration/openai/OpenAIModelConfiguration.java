@@ -7,7 +7,6 @@ import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import es.upsa.configuration.ModelProvider;
 import es.upsa.providers.llms.OpenAIProvider;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.Duration;
@@ -16,14 +15,18 @@ import java.time.Duration;
 @OpenAIProvider
 public class OpenAIModelConfiguration implements ModelProvider {
 
-    @Inject
+
     @ConfigProperty(name = "quarkus.langchain4j.openai.api-key")
     String apiKey;
+
+    @ConfigProperty(name = "openai.chat-model-id")
+    String chatModelId;
+
 
     @Override
     public ChatLanguageModel getChatLanguageModel() {
         return OpenAiChatModel.builder()
-                .modelName("gpt-4")
+                .modelName(chatModelId)
                 .apiKey(apiKey)
                 .temperature(0.7)
                 .timeout(Duration.ofSeconds(60))

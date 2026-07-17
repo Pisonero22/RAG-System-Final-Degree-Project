@@ -8,7 +8,11 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+
 @Provider
+@AdminEndpoint
 @Priority(Priorities.AUTHENTICATION)
 public class AdminApiKeyFilter implements ContainerRequestFilter {
 
@@ -17,16 +21,13 @@ public class AdminApiKeyFilter implements ContainerRequestFilter {
 
     @Override
     public void filter(ContainerRequestContext ctx) {
-        String path = ctx.getUriInfo().getPath();
-        boolean esRutaAdmin = path.startsWith("service/ingest") || path.startsWith("service/reset");
-
-        if (esRutaAdmin) {
-            String key = ctx.getHeaderString("X-API-KEY");
-            if (key == null || !key.equals(expectedKey)) {
-                ctx.abortWith(Response.status(Response.Status.UNAUTHORIZED)
-                        .entity("API key inválida o ausente")
-                        .build());
-            }
+        String key = ctx.getHeaderString("X-API-KEY");
+        if (key == null || !MessageDigest.isEqual(
+                key.getBytes(StandardCharsets.UTF_8),
+                expectedKey.getBytes(StandardCharsets.UTF_8))) {
+            ctx.abortWith(Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("API key inválida o ausente")
+                    .build());
         }
     }
 }

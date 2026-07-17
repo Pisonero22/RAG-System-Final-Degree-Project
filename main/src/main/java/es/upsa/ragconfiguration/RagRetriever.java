@@ -40,14 +40,16 @@ public class RagRetriever {
                 .contentInjector(new ContentInjector() {
                     @Override
                     public UserMessage inject(List<Content> list, UserMessage userMessage) {
-                        StringBuffer prompt = new StringBuffer(userMessage.singleText());
-                        prompt.append("\nIMPORTANTE: A continuación tienes información relevante encontrada " +
-                                "en la base de datos que debes usar directamente para responder al usuario.\n");
-                        prompt.append("No digas “no tengo información o algo similar”.\n");
-                        prompt.append("Si la información es suficiente, contesta con base en ella.\n\n");
-
-                        list.forEach(content -> prompt.append("- ").append(content.textSegment().text()).append("\n"));
-                        log.info("\nPrompt final:\n" + prompt);
+                        if (list.isEmpty()) {
+                            // Sin resultados: no fabricamos un contexto falso.
+                            // El system prompt ya indica qué hacer cuando no hay contexto.
+                            return userMessage;
+                        }
+                        StringBuilder prompt = new StringBuilder(userMessage.singleText());
+                        prompt.append("\n\nContexto recuperado de la base de conocimiento:\n");
+                        list.forEach(content ->
+                                prompt.append("- ").append(content.textSegment().text()).append('\n'));
+                        log.debug("Prompt final:\n{}", prompt);
                         return new UserMessage(prompt.toString());
                     }
                 })

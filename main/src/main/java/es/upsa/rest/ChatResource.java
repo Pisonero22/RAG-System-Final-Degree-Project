@@ -2,12 +2,14 @@ package es.upsa.rest;
 
 import es.upsa.files.FileUploadService;
 import es.upsa.providers.storages.RedisStorage;
+import es.upsa.security.AdminEndpoint;
 import es.upsa.store.redis.IngestionRedisConfiguration;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.jboss.logging.annotations.Pos;
 import org.jboss.resteasy.reactive.RestForm;
 
 import java.io.IOException;
@@ -23,9 +25,10 @@ public class ChatResource {
     @Inject
     FileUploadService fileUploadService;
 
-    @GET
+    @POST
     @Path("/ingest")
     @Produces(MediaType.TEXT_PLAIN)
+    @AdminEndpoint
     public Response getIngestResponse() throws IOException {
 
         ingestionRedisConfiguration.clearIngestionCache();
@@ -36,9 +39,10 @@ public class ChatResource {
                 .build();
     }
 
-    @GET
+    @POST
     @Path("/reset")
-    @Produces(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
+    @AdminEndpoint
     public Response resetRedis() throws IOException {
         ingestionRedisConfiguration.resetEmbeddingStore();
         return Response.ok()
@@ -50,6 +54,7 @@ public class ChatResource {
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.TEXT_PLAIN)
+    @AdminEndpoint
     public Response subirArchivo(@RestForm("file") InputStream archivo,
                                  @RestForm("fileName") String nombreArchivo) {
         try {

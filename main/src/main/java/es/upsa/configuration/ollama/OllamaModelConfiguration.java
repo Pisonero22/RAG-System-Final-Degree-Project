@@ -9,6 +9,7 @@ import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
 import es.upsa.configuration.ModelProvider;
 import es.upsa.providers.llms.OllamaProvider;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.Duration;
 
@@ -16,12 +17,17 @@ import java.time.Duration;
 @OllamaProvider
 public class OllamaModelConfiguration implements ModelProvider {
 
+    @ConfigProperty(name = "ollama.base-url")
+    String baseURL;
+
+    @ConfigProperty(name = "ollama.chat-model-id")
+    String chatModelId;
 
     @Override
     public ChatLanguageModel getChatLanguageModel() {
         return OllamaChatModel.builder()
-                .baseUrl("http://localhost:11434")
-                .modelName("llama3.2")
+                .baseUrl(baseURL)
+                .modelName(chatModelId)
                 .httpClientBuilder(new JdkHttpClientBuilder())
                 .timeout(Duration.ofMillis(60000))
                 .temperature(0.6)               // mas creatividad

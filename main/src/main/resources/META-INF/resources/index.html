@@ -181,8 +181,8 @@
             if (!llm) { appendSystemMessage("Selecciona un modelo antes de ingestar."); return; }
 
             $.ajax({
-                url: "/service/ingest/",
-                type: "GET",
+                url: "/service/ingest",
+                type: "POST",
                 dataType: "text",
                 headers: { "X-API-KEY": ADMIN_KEY },
                 success: data => appendSystemMessage("Ingestión completada: " + data),
@@ -199,7 +199,8 @@
 
             $.ajax({
                 url: "/service/reset",
-                type: "GET",
+                type: "POST",
+                headers: { "X-API-KEY": ADMIN_KEY },
                 dataType: "text",
                 success: data => {
                     setTimeout(() => location.reload(), 250);
@@ -249,6 +250,7 @@
                 url: "/service/upload",
                 type: "POST",
                 data: formData,
+                headers: { "X-API-KEY": ADMIN_KEY },
                 contentType: false,
                 processData: false,
                 success: data => {
