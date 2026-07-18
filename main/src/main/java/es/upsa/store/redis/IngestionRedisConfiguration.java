@@ -18,9 +18,6 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.commands.ProtocolCommand;
-import redis.clients.jedis.util.SafeEncoder;
 
 
 import java.io.IOException;
@@ -80,51 +77,32 @@ public class IngestionRedisConfiguration implements StorageProvider {
 
     @Override
     public void ingest () throws IOException {
-        List<Document> files = new ArrayList<>();
-        files.addAll(documentFromFileTxt.load(txtFile));
-        files.addAll(documentFromFileCSV.load(csvFiles));
-        files.addAll(documentFromFilePDF.load(pdfFiles));
 
-        log.info("Se han cargado {} documentos entre txts, CSVs y PDFs desde {} + {} + {}"
-                , files.size(), txtFile, csvFiles,pdfFiles);
-        if (files.isEmpty()) {
-            log.warn("No se han cargado documentos. Revisa el directorio y el contenido de los archivos.");
-        }
-        EmbeddingStoreIngestor storeIngestor = EmbeddingStoreIngestor.builder()
+        // CSV: cada fila ya es un documento autocontenido -> SIN splitter
+        List<Document> csvDocs = documentFromFileCSV.load(csvFiles);
+        EmbeddingStoreIngestor.builder()
                 .embeddingStore(embeddingStore)
                 .embeddingModel(embeddingModel)
-                .documentSplitter(recursive(256,64))
-                .build();
+                .build()                                  // sin documentSplitter: 1 fila = 1 embedding
+                .ingest(csvDocs);
 
-        storeIngestor.ingest(files);
+        // TXT y PDF: prosa -> chunks más grandes con solape
+        List<Document> textDocs = new ArrayList<>();
+        textDocs.addAll(documentFromFileTxt.load(txtFile));
+        textDocs.addAll(documentFromFilePDF.load(pdfFiles));
+        EmbeddingStoreIngestor.builder()
+                .embeddingStore(embeddingStore)
+                .embeddingModel(embeddingModel)
+                .documentSplitter(recursive(512, 128))
+                .build()
+                .ingest(textDocs);
+
+        log.info("Ingesta: {} filas CSV + {} docs de texto/PDF", csvDocs.size(), textDocs.size());
     }
 
 
     @Override
     public void resetEmbeddingStore() throws IOException {
-        try (Jedis jedis = new Jedis("localhost", 6379)) {
-
-            // Eliminar índice RediSearch manualmente
-            try {
-                jedis.getClient().sendCommand(new ProtocolCommand() {
-                    @Override
-                    public byte[] getRaw() {
-                        return SafeEncoder.encode("FT.DROPINDEX");
-                    }
-                }, "embedding-index", "DD");
-
-                log.info("Índice 'embedding-index' eliminado correctamente.");
-            } catch (Exception e) {
-                log.warn("No se pudo eliminar el índice (puede que no exista): {}", e.getMessage());
-            }
-
-           clearIngestionCache();
-
-        } catch (Exception e) {
-            log.error("Error al resetear Redis: ", e);
-        }
-
-        ingest();
 
         try {
             redis.execute("FT.DROPINDEX", indexName, "DD");

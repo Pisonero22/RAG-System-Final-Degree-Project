@@ -1,6 +1,8 @@
 package es.upsa.ragconfiguration;
 
 import java.util.List;
+import java.util.function.Supplier;
+
 import io.quarkiverse.langchain4j.redis.RedisEmbeddingStore;
 
 import dev.langchain4j.data.message.UserMessage;
@@ -18,24 +20,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ApplicationScoped
-public class RagRetriever {
+public class RagRetriever implements Supplier<RetrievalAugmentor> {
 
     private static final Logger log = LoggerFactory.getLogger(RagRetriever.class);
 
+    private final RetrievalAugmentor augmentor;
+
+
+
+
     @Inject
-    RedisEmbeddingStore embeddingStore;
-    @Inject
-    EmbeddingModel embeddingModel;
-    public RetrievalAugmentor getRetrievalAugmentor() {
+    public RagRetriever(RedisEmbeddingStore embeddingStore, EmbeddingModel embeddingModel) {
         EmbeddingStoreContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
                 .embeddingModel(embeddingModel)
                 .embeddingStore(embeddingStore)
                 //Dos embeddings se eligen
-                .maxResults(2)
+                .maxResults(3)
                 //El grado de similitud minimo
-                .minScore(0.78)
+                .minScore(0.7)
                 .build();
-        return DefaultRetrievalAugmentor.builder()
+         this.augmentor = DefaultRetrievalAugmentor.builder()
                 .contentRetriever(contentRetriever)
                 .contentInjector(new ContentInjector() {
                     @Override
@@ -47,13 +51,25 @@ public class RagRetriever {
                         }
                         StringBuilder prompt = new StringBuilder(userMessage.singleText());
                         prompt.append("\n\nContexto recuperado de la base de conocimiento:\n");
-                        list.forEach(content ->
-                                prompt.append("- ").append(content.textSegment().text()).append('\n'));
+                        list.forEach(content -> prompt.append("- ").append(content.textSegment().text()).append('\n'));
                         log.debug("Prompt final:\n{}", prompt);
+                        list.forEach(c -> {
+                            var md = c.textSegment().metadata();
+                            String fuente = md.getString("file") != null
+                                    ? md.getString("file") + " (pág. " + md.getString("page") + ")"
+                                    : md.getString("file_name") != null ? md.getString("file_name")
+                                    : "CSV fila " + md.getString("fila");
+                            prompt.append("- [").append(fuente).append("] ")
+                                    .append(c.textSegment().text()).append('\n');
+                        });
                         return new UserMessage(prompt.toString());
                     }
                 })
                 .build();
     }
 
+    @Override
+    public RetrievalAugmentor get() {
+        return augmentor;
+    }
 }

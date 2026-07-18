@@ -1,7 +1,7 @@
 package es.upsa.websockets;
 
 import es.upsa.rag.RagChatService;
-import es.upsa.store.ChatMemoryStore;
+import es.upsa.store.RagChatMemoryStore;
 import io.quarkus.websockets.next.OnClose;
 import io.quarkus.websockets.next.OnOpen;
 import io.quarkus.websockets.next.OnTextMessage;
@@ -14,9 +14,9 @@ public class ChatWebSocket {
 
     @Inject
     RagChatService ragChatService;
-    @Inject
-    ChatMemoryStore chatMemoryStore;
 
+    @Inject
+    RagChatMemoryStore memoryStore;
 
     public enum MessageType {USER_JOINED, USER_LEFT, CHAT_MESSAGE}
     public record ChatMessage(MessageType type, String from, String message,String llm) {
@@ -28,10 +28,11 @@ public class ChatWebSocket {
     public ChatMessage onOpen() {
         return new ChatMessage(MessageType.USER_JOINED, connection.pathParam("username"), null,null);
     }
+
     @OnClose
     public void onClose() {
         ChatMessage departure = new ChatMessage(MessageType.USER_LEFT, connection.pathParam("username"), null,null);
-        chatMemoryStore.clear(connection.pathParam("username"));
+        memoryStore.deleteMessages(connection.pathParam("username"));
         connection.broadcast().sendTextAndAwait(departure);
 
     }
@@ -43,7 +44,7 @@ public class ChatWebSocket {
         connection.broadcast().sendTextAndAwait(userMsg);
 
         // Obtener respuesta de la IA y también enviarla a todos los clientes
-        String responseWithRag2 = ragChatService.getIngestResponseWithRag(username,message.message, message.llm);
+        String responseWithRag2 = ragChatService.chat(username,message.message, message.llm);
         ChatMessage aiMsg = new ChatMessage(MessageType.CHAT_MESSAGE, message.llm, responseWithRag2,message.llm);
         connection.broadcast().sendTextAndAwait(aiMsg);
     }

@@ -1,63 +1,45 @@
 package es.upsa.rag;
 
-import dev.langchain4j.rag.RetrievalAugmentor;
-import dev.langchain4j.service.AiServices;
-import es.upsa.configuration.ModelProvider;
-import es.upsa.providers.llms.DeepSeekProvider;
-import es.upsa.providers.llms.MistralProvider;
-import es.upsa.providers.llms.OllamaProvider;
-import es.upsa.providers.llms.OpenAIProvider;
 import es.upsa.ragconfiguration.RagAssistant;
-import es.upsa.ragconfiguration.RagRetriever;
-import es.upsa.store.ChatMemoryStore;
+
+import io.quarkiverse.langchain4j.runtime.aiservice.GuardrailException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @ApplicationScoped
 public class RagChatService {
 
+    private static final Logger log = LoggerFactory.getLogger(RagChatService.class);
 
     @Inject
-    RagRetriever ragRetriever;
+    RagAssistant assistant;
 
-    @Inject
-    ChatMemoryStore chatMemoryStore;
+    public String chat(String username, String message, String modelProvider){
+        try {
 
-    @Inject
-    @OllamaProvider
-    ModelProvider ollamaProvider;
-    @Inject
-    @OpenAIProvider
-    ModelProvider openAIProvider;
-    @Inject
-    @DeepSeekProvider
-    ModelProvider deepSeekProvider;
-    @Inject
-    @MistralProvider
-    ModelProvider mistralProvider;
-
-    public String getIngestResponseWithRag(String username, String message, String modelProvider) {
-        RetrievalAugmentor retrievalAugmentor = ragRetriever.getRetrievalAugmentor();
-        return AiServices.builder(RagAssistant.class)
-                .chatLanguageModel(getProviderByName(modelProvider).getChatLanguageModel())
-                .chatMemory(chatMemoryStore.getOrCreate(username))
-                .retrievalAugmentor(retrievalAugmentor)
-                .build()
-                .augmentedChat(message);
+            return assistant.chat(normalizarModelo(modelProvider), username, message);
+        } catch (GuardrailException e) {
+            log.info("Mensaje bloqueado por guardrail para '{}': {}", username, e.getMessage());
+            return "Mensaje bloqueado: se ha detectado un posible intento de prompt injection.";
+        } catch (Exception e) {
+            log.error("Error procesando mensaje de '{}'", username, e);
+            return "Ha ocurrido un error procesando tu mensaje. Inténtalo de nuevo.";
+        }
     }
 
 
-    public ModelProvider getProviderByName(String name) {
 
+    private String normalizarModelo(String name) {
         if (name == null || name.isBlank()) {
-            return ollamaProvider;
+            return "llama";
         }
         return switch (name.toLowerCase()) {
-            case "openai" -> openAIProvider;
-            case "ollama" -> ollamaProvider;
-            case "deepseek" -> deepSeekProvider;
-            case "mistral" -> mistralProvider;
-            default -> ollamaProvider;
+            case "openai", "gpt" -> "gpt";
+            case "deepseek"      -> "deepseek";
+            case "mistral"       -> "mistral";
+            default              -> "llama";
         };
     }
 
