@@ -30,14 +30,14 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
         List<Document> documents = new ArrayList<>();
         try (Stream<Path> files = Files.list(folder)) {
             files.filter(Files::isRegularFile)
-                 .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"))
-                 .forEach(p -> {
-                    try {
-                        documents.addAll(loadCsvFile(p));
-                    } catch (IOException e) {
-                       throw new UncheckedIOException("Error leyendo CSV " + p, e);
-                    }
-                });
+                    .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"))
+                    .forEach(p -> {
+                        try {
+                            documents.addAll(loadCsvFile(p));
+                        } catch (IOException e) {
+                            throw new UncheckedIOException("Error leyendo CSV " + p, e);
+                        }
+                    });
         }
 
         return documents;
@@ -48,19 +48,22 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
                 .setHeader()
                 .setSkipHeaderRecord(true)
                 .build();
+        // Sin el prefijo UUID de la subida: "bd49ab9c-..._Productos.csv" -> "Productos.csv"
+        String nombreLimpio = csvPath.getFileName().toString().replaceFirst("^[0-9a-fA-F-]{36}_", "");
+
         List<Document> documents = new ArrayList<>();
         try (Reader reader = Files.newBufferedReader(csvPath);
              CSVParser parser = new CSVParser(reader, format)) {
             int rowNum = 1;
             for (CSVRecord record : parser) {
+                // Metadatos mínimos: fichero y fila. Las columnas van solo en el TEXTO.
                 Map<String, Object> map = new LinkedHashMap<>();
-                map.put("nombre", csvPath.toString());
+                map.put("nombre", nombreLimpio);
                 map.put("fila", rowNum++);
-                StringBuilder text = new StringBuilder();
 
+                StringBuilder text = new StringBuilder();
                 for (String header : parser.getHeaderNames()) {
                     String value = record.get(header);
-                    map.put(header, value);
                     text.append(header).append(": ").append(value).append("\n");
                 }
 

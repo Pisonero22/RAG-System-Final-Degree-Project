@@ -20,6 +20,7 @@ ollama pull bge-large
 ollama pull mistral:instruct
 ollama pull deepseek-r1:7b
 ollama pull bge-m3
+ollama pull llama3.1:8b
 
 echo "Levantando servicios de Docker Compose en background…"
 docker compose up -d

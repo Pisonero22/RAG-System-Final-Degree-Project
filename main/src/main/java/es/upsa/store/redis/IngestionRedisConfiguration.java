@@ -57,8 +57,6 @@ public class IngestionRedisConfiguration implements StorageProvider {
     @Inject
     RedisDataSource redis;
 
-    @ConfigProperty(name = "rag.redis.index")
-    String indexName;
 
     @Override
     public void clearIngestionCache() {
@@ -101,17 +99,28 @@ public class IngestionRedisConfiguration implements StorageProvider {
     }
 
 
+    /**
+     * Reset = borrar todas las claves de embeddings y reingestar.
+     *
+     * AQUÍ YA NO SE HACE FT.DROPINDEX, y es importante entender por qué:
+     * la extensión de Redis solo crea el índice UNA vez, al arrancar la aplicación
+     * (en el constructor de RedisEmbeddingStore). Si tiras el índice en caliente,
+     * nada lo recrea, y todas las búsquedas fallan con "No such index" hasta el
+     * siguiente reinicio (verificado: es exactamente lo que pasó al usar /reset
+     * en mitad de una sesión).
+     *
+     * Borrar las claves es suficiente para "resetear" los datos: RediSearch
+     * des-indexa automáticamente las claves borradas y re-indexa las nuevas.
+     *
+     * Caso aparte: si cambias de MODELO DE EMBEDDINGS o de DIMENSIÓN, el esquema
+     * del índice sí debe cambiar, y eso exige: parar la app -> redis-cli FLUSHALL
+     * -> arrancar (se recrea el índice con el esquema nuevo) -> POST /service/ingest.
+     */
     @Override
     public void resetEmbeddingStore() throws IOException {
-
-        try {
-            redis.execute("FT.DROPINDEX", indexName, "DD");
-            log.info("Índice '{}' eliminado.", indexName);
-        } catch (Exception e) {
-            log.warn("No se pudo eliminar el índice (puede que no exista): {}", e.getMessage());
-        }
         clearIngestionCache();
         ingest();
+        log.info("Reset completado: claves borradas y documentos reingestados (índice intacto).");
     }
 
 

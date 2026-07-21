@@ -1,4 +1,0 @@
-Mido 177 centimetros ademas vivo en España, Madrid.
-Estudio Ingenieria Informática y estoy en mi cuarto año. Tengo un MacBook Pro 13
-Estoy haciendo un TFG que su titulo es LangChain4j: Integración de Quarkus y LLMs con el uso de RAG y WebSockets,
-La Universidad Pontificia de Salamanca tiene los grados de Enfermeria, Ingenieria Informatica y ADET tambien tengo unos cascos ASTRO A50 negros desde hace 4 años pero estan como nuevos y se escucha muy bien.

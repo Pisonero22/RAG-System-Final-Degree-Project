@@ -38,6 +38,12 @@ public class ChatWebSocket {
     }
     @OnTextMessage
     public void onMessage(ChatMessage message) {
+        // Mensaje vacío o solo espacios: se ignora sin llegar al pipeline.
+        // Sin este filtro, Query.from("") lanza IllegalArgumentException
+        // ("text cannot be null or blank") y el usuario ve un error genérico.
+        if (message.message == null || message.message.isBlank()) {
+            return;
+        }
         String username = connection.pathParam("username");
         // Enviar primero el mensaje del usuario a todos los clientes
         ChatMessage userMsg = new ChatMessage(MessageType.CHAT_MESSAGE, username, message.message,message.llm);

@@ -1,0 +1,189 @@
+ID_Producto,Nombre,Categoria,Marca,Precio_Base_EUR,Descuento_Porcentaje,Precio_Final_EUR,Stock_Unidades,Pasillo,Fecha_Caducidad,Apto_Vegano
+PROD-0010,Kéfir 500ml,Lácteos,El Corte Inglés,5.79,0,5.79,349,Pasillo 01,2026-08-09,No
+PROD-0104,Kéfir 500ml,Lácteos,Carrefour,7.61,0,7.61,106,Pasillo 01,2026-07-29,No
+PROD-0001,Leche Entera 1L,Lácteos,Carrefour,2.64,0,2.64,114,Pasillo 01,2026-08-13,No
+PROD-0095,Leche Entera 1L Premium,Lácteos,Marca Local,5.71,0,5.71,98,Pasillo 01,2026-08-13,No
+PROD-0002,Leche Semidesnatada 1L,Lácteos,Carrefour,1.24,0,1.24,216,Pasillo 01,2026-07-21,No
+PROD-0096,Leche Semidesnatada 1L,Lácteos,Aliada,6.23,5,5.91,305,Pasillo 01,2026-07-24,No
+PROD-0003,Leche sin Lactosa,Lácteos,Aliada,0.8,50,0.4,101,Pasillo 01,2026-08-03,No
+PROD-0097,Leche sin Lactosa,Lácteos,Auchan,2.84,50,1.42,362,Pasillo 01,2026-07-25,No
+PROD-0008,Mantequilla Salada 250g,Lácteos,Aliada,0.94,5,0.89,116,Pasillo 01,2026-07-23,No
+PROD-0102,Mantequilla Salada 250g,Lácteos,Consum,5.09,0,5.09,404,Pasillo 01,2026-08-14,No
+PROD-0103,Nata para Cocinar 200ml,Lácteos,Hacendado,6.97,5,6.62,219,Pasillo 01,2026-08-08,No
+PROD-0009,Nata para Cocinar 200ml (Formato Ahorro),Lácteos,Eroski,3.96,10,3.56,427,Pasillo 01,2026-07-26,No
+PROD-0004,Queso Curado 250g,Lácteos,Consum,7.03,0,7.03,388,Pasillo 01,2026-08-12,No
+PROD-0098,Queso Curado 250g,Lácteos,Marca Local,2.76,0,2.76,483,Pasillo 01,2026-08-10,No
+PROD-0005,Queso Fresco,Lácteos,Consum,7.68,0,7.68,172,Pasillo 01,2026-07-23,No
+PROD-0099,Queso Fresco,Lácteos,El Corte Inglés,2.7,20,2.16,245,Pasillo 01,2026-07-31,No
+PROD-0006,Yogur Natural 4x125g,Lácteos,Marca Local,5.07,0,5.07,413,Pasillo 01,2026-08-13,No
+PROD-0100,Yogur Natural 4x125g (Formato Ahorro),Lácteos,Marca Local,6.98,0,6.98,58,Pasillo 01,2026-08-02,No
+PROD-0101,Yogur de Fresa,Lácteos,Aliada,1.0,5,0.95,76,Pasillo 01,2026-07-23,No
+PROD-0007,Yogur de Fresa Premium,Lácteos,Eroski,3.4,5,3.23,282,Pasillo 01,2026-08-16,No
+PROD-0011,Barra de Pan Rústica,Panadería y Bollería,Eroski,4.02,50,2.01,138,Pasillo 02,2026-07-22,Sí
+PROD-0105,Barra de Pan Rústica,Panadería y Bollería,Marca Local,1.16,15,0.98,1,Pasillo 02,2026-07-26,No
+PROD-0014,Croissant de Mantequilla,Panadería y Bollería,Aliada,6.13,15,5.21,219,Pasillo 02,2026-07-24,Sí
+PROD-0108,Croissant de Mantequilla Premium,Panadería y Bollería,Auchan,6.72,0,6.72,36,Pasillo 02,2026-07-21,No
+PROD-0018,Donut de Chocolate,Panadería y Bollería,El Corte Inglés,5.94,5,5.65,368,Pasillo 02,2026-07-27,Sí
+PROD-0112,Donut de Chocolate,Panadería y Bollería,Consum,4.44,5,4.22,226,Pasillo 02,2026-07-21,No
+PROD-0016,Empanada de Atún,Panadería y Bollería,Hacendado,5.01,50,2.5,239,Pasillo 02,2026-07-23,Sí
+PROD-0110,Empanada de Atún,Panadería y Bollería,Carrefour,3.8,5,3.61,165,Pasillo 02,2026-07-19,Sí
+PROD-0017,Ensaimada,Panadería y Bollería,Auchan,2.57,10,2.32,328,Pasillo 02,2026-07-20,No
+PROD-0111,Ensaimada (Formato Ahorro),Panadería y Bollería,Auchan,4.86,0,4.86,486,Pasillo 02,2026-07-31,Sí
+PROD-0015,Magdalenas Caseras (12 ud),Panadería y Bollería,El Corte Inglés,0.95,0,0.95,56,Pasillo 02,2026-07-29,No
+PROD-0109,Magdalenas Caseras (12 ud),Panadería y Bollería,Marca Local,2.85,5,2.71,206,Pasillo 02,2026-07-27,No
+PROD-0013,Pan Integral con Semillas,Panadería y Bollería,El Corte Inglés,7.37,0,7.37,234,Pasillo 02,2026-07-23,Sí
+PROD-0107,Pan Integral con Semillas,Panadería y Bollería,Carrefour,5.49,0,5.49,478,Pasillo 02,2026-07-25,Sí
+PROD-0012,Pan de Molde Blanco,Panadería y Bollería,Eroski,2.93,0,2.93,137,Pasillo 02,2026-07-22,Sí
+PROD-0106,Pan de Molde Blanco,Panadería y Bollería,Aliada,2.69,20,2.15,440,Pasillo 02,2026-07-20,No
+PROD-0028,Aguacate,Frutas y Verduras,Marca Local,0.56,20,0.45,67,Pasillo 03,2026-07-22,Sí
+PROD-0122,Aguacate,Frutas y Verduras,Consum,0.46,5,0.44,35,Pasillo 03,2026-07-31,Sí
+PROD-0026,Cebollas 1kg,Frutas y Verduras,Aliada,3.1,50,1.55,301,Pasillo 03,2026-07-22,Sí
+PROD-0120,Cebollas 1kg,Frutas y Verduras,Auchan,7.5,50,3.75,149,Pasillo 03,2026-07-30,Sí
+PROD-0027,Lechuga Iceberg,Frutas y Verduras,Eroski,1.04,0,1.04,34,Pasillo 03,2026-08-01,Sí
+PROD-0121,Lechuga Iceberg,Frutas y Verduras,Consum,4.09,50,2.05,233,Pasillo 03,2026-07-21,Sí
+PROD-0123,Limones 1kg,Frutas y Verduras,Auchan,2.58,5,2.45,1,Pasillo 03,2026-07-30,Sí
+PROD-0029,Limones 1kg (Formato Ahorro),Frutas y Verduras,Consum,1.32,10,1.19,220,Pasillo 03,2026-07-25,Sí
+PROD-0020,Manzanas Fuji,Frutas y Verduras,Eroski,6.36,0,6.36,271,Pasillo 03,2026-07-28,Sí
+PROD-0114,Manzanas Fuji,Frutas y Verduras,Hacendado,2.73,15,2.32,483,Pasillo 03,2026-08-01,Sí
+PROD-0019,Manzanas Golden 1kg (Formato Ahorro),Frutas y Verduras,Eroski,5.33,0,5.33,311,Pasillo 03,2026-07-21,Sí
+PROD-0113,Manzanas Golden 1kg (Formato Ahorro),Frutas y Verduras,El Corte Inglés,3.62,0,3.62,164,Pasillo 03,2026-08-01,Sí
+PROD-0030,Naranjas de Zumo 2kg,Frutas y Verduras,Consum,5.58,0,5.58,330,Pasillo 03,2026-07-19,Sí
+PROD-0124,Naranjas de Zumo 2kg (Formato Ahorro),Frutas y Verduras,Marca Local,5.48,0,5.48,443,Pasillo 03,2026-07-26,Sí
+PROD-0024,Patatas Malla 3kg,Frutas y Verduras,Aliada,3.73,50,1.87,108,Pasillo 03,2026-07-31,Sí
+PROD-0118,Patatas Malla 3kg (Formato Ahorro),Frutas y Verduras,El Corte Inglés,0.81,0,0.81,322,Pasillo 03,2026-07-30,Sí
+PROD-0021,Plátanos de Canarias 1kg,Frutas y Verduras,Hacendado,3.29,5,3.12,425,Pasillo 03,2026-07-22,Sí
+PROD-0115,Plátanos de Canarias 1kg,Frutas y Verduras,Hacendado,2.99,15,2.54,496,Pasillo 03,2026-08-01,Sí
+PROD-0117,Tomates Cherry,Frutas y Verduras,Marca Local,2.11,0,2.11,281,Pasillo 03,2026-07-23,Sí
+PROD-0023,Tomates Cherry (Formato Ahorro),Frutas y Verduras,El Corte Inglés,1.53,20,1.22,337,Pasillo 03,2026-07-27,Sí
+PROD-0022,Tomates Rama 500g,Frutas y Verduras,Carrefour,1.18,20,0.95,374,Pasillo 03,2026-08-01,Sí
+PROD-0116,Tomates Rama 500g,Frutas y Verduras,Marca Local,3.66,50,1.83,96,Pasillo 03,2026-07-24,Sí
+PROD-0025,Zanahorias 500g,Frutas y Verduras,Marca Local,5.57,20,4.46,191,Pasillo 03,2026-07-27,Sí
+PROD-0119,Zanahorias 500g,Frutas y Verduras,Carrefour,3.62,0,3.62,115,Pasillo 03,2026-07-26,Sí
+PROD-0032,Carne Picada Mixta 400g,Carnicería y Charcutería,Carrefour,11.0,20,8.8,38,Pasillo 04,2026-08-15,No
+PROD-0126,Carne Picada Mixta 400g (Formato Ahorro),Carnicería y Charcutería,Marca Local,10.85,0,10.85,210,Pasillo 04,2026-07-31,No
+PROD-0132,Chorizo Ibérico,Carnicería y Charcutería,Carrefour,5.66,0,5.66,147,Pasillo 04,2026-08-13,No
+PROD-0038,Chorizo Ibérico (Formato Ahorro),Carnicería y Charcutería,Aliada,1.98,0,1.98,304,Pasillo 04,2026-08-11,No
+PROD-0129,Chuletas de Cerdo,Carnicería y Charcutería,Marca Local,7.04,0,7.04,496,Pasillo 04,2026-07-23,No
+PROD-0035,Chuletas de Cerdo (Formato Ahorro),Carnicería y Charcutería,Marca Local,6.4,5,6.08,232,Pasillo 04,2026-08-03,No
+PROD-0127,Filetes de Lomo 500g,Carnicería y Charcutería,Hacendado,9.31,0,9.31,420,Pasillo 04,2026-08-05,No
+PROD-0033,Filetes de Lomo 500g Premium,Carnicería y Charcutería,Consum,11.75,0,11.75,474,Pasillo 04,2026-07-26,No
+PROD-0036,Jamón Serrano cortado 150g,Carnicería y Charcutería,Eroski,7.77,50,3.88,296,Pasillo 04,2026-07-22,No
+PROD-0130,Jamón Serrano cortado 150g,Carnicería y Charcutería,Eroski,5.21,0,5.21,203,Pasillo 04,2026-08-17,No
+PROD-0037,Pavo braseado 200g,Carnicería y Charcutería,Hacendado,4.32,50,2.16,436,Pasillo 04,2026-07-26,No
+PROD-0131,Pavo braseado 200g (Formato Ahorro),Carnicería y Charcutería,Hacendado,3.41,20,2.73,162,Pasillo 04,2026-08-17,No
+PROD-0031,Pechuga de Pollo 500g,Carnicería y Charcutería,Marca Local,1.41,0,1.41,98,Pasillo 04,2026-08-07,No
+PROD-0125,Pechuga de Pollo 500g,Carnicería y Charcutería,Aliada,4.62,10,4.16,233,Pasillo 04,2026-08-17,No
+PROD-0034,Salchichas Frescas 400g,Carnicería y Charcutería,Hacendado,3.57,0,3.57,30,Pasillo 04,2026-08-02,No
+PROD-0128,Salchichas Frescas 400g Premium,Carnicería y Charcutería,Marca Local,3.06,20,2.45,51,Pasillo 04,2026-07-24,No
+PROD-0133,Agua Mineral 1.5L,Bebidas,Hacendado,1.35,0,1.35,227,Pasillo 05,2027-08-18,Sí
+PROD-0039,Agua Mineral 1.5L Premium,Bebidas,Eroski,0.99,0,0.99,20,Pasillo 05,2027-12-19,Sí
+PROD-0134,Agua con Gas,Bebidas,Consum,0.75,0,0.75,74,Pasillo 05,2028-04-11,Sí
+PROD-0040,Agua con Gas (Formato Ahorro),Bebidas,Marca Local,0.59,0,0.59,202,Pasillo 05,2027-08-19,Sí
+PROD-0138,Cerveza IPA,Bebidas,Marca Local,4.95,15,4.21,327,Pasillo 05,2027-06-29,Sí
+PROD-0044,Cerveza IPA (Formato Ahorro),Bebidas,El Corte Inglés,7.1,0,7.1,135,Pasillo 05,2027-02-02,Sí
+PROD-0043,Cerveza Lager 330ml,Bebidas,Auchan,5.81,50,2.9,313,Pasillo 05,2026-10-24,Sí
+PROD-0137,Cerveza Lager 330ml,Bebidas,Carrefour,4.04,50,2.02,147,Pasillo 05,2027-03-26,Sí
+PROD-0041,Refresco de Cola 330ml,Bebidas,Aliada,1.14,0,1.14,234,Pasillo 05,2026-12-30,Sí
+PROD-0135,Refresco de Cola 330ml,Bebidas,Aliada,1.86,15,1.58,40,Pasillo 05,2028-07-11,Sí
+PROD-0042,Refresco de Naranja,Bebidas,Auchan,3.18,0,3.18,35,Pasillo 05,2027-10-29,Sí
+PROD-0136,Refresco de Naranja,Bebidas,Auchan,2.32,5,2.2,326,Pasillo 05,2028-01-29,Sí
+PROD-0048,Vino Blanco Rueda,Bebidas,Hacendado,7.59,0,7.59,353,Pasillo 05,2028-04-26,Sí
+PROD-0142,Vino Blanco Rueda,Bebidas,Carrefour,5.31,5,5.05,317,Pasillo 05,2027-03-05,Sí
+PROD-0047,Vino Tinto Crianza,Bebidas,Consum,8.41,20,6.72,379,Pasillo 05,2028-05-02,Sí
+PROD-0141,Vino Tinto Crianza,Bebidas,Aliada,17.66,20,14.13,466,Pasillo 05,2027-08-05,Sí
+PROD-0045,Zumo de Naranja 1L,Bebidas,Marca Local,5.91,5,5.61,104,Pasillo 05,2028-03-16,Sí
+PROD-0139,Zumo de Naranja 1L (Formato Ahorro),Bebidas,Consum,3.45,0,3.45,247,Pasillo 05,2027-06-15,Sí
+PROD-0140,Zumo de Piña,Bebidas,Auchan,7.95,0,7.95,151,Pasillo 05,2027-11-25,Sí
+PROD-0046,Zumo de Piña Premium,Bebidas,Hacendado,0.98,15,0.83,324,Pasillo 05,2027-07-26,Sí
+PROD-0057,Bolsas de Basura 30L,Limpieza,Aliada,5.09,0,5.09,261,Pasillo 06,2028-12-28,No
+PROD-0151,Bolsas de Basura 30L,Limpieza,El Corte Inglés,7.63,50,3.81,356,Pasillo 06,2029-02-01,No
+PROD-0049,Detergente Líquido 30 lavados (Formato Ahorro),Limpieza,Eroski,1.7,0,1.7,65,Pasillo 06,2028-10-10,Sí
+PROD-0143,Detergente Líquido 30 lavados (Formato Ahorro),Limpieza,Eroski,2.89,0,2.89,225,Pasillo 06,2029-07-15,Sí
+PROD-0144,Detergente en Cápsulas,Limpieza,Eroski,6.13,0,6.13,89,Pasillo 06,2028-04-13,No
+PROD-0050,Detergente en Cápsulas (Formato Ahorro),Limpieza,Consum,2.45,10,2.2,52,Pasillo 06,2030-02-05,Sí
+PROD-0056,Estropajos (Pack 3) (Formato Ahorro),Limpieza,Consum,4.9,0,4.9,135,Pasillo 06,2028-03-20,No
+PROD-0150,Estropajos (Pack 3) Premium,Limpieza,Aliada,2.85,0,2.85,252,Pasillo 06,2028-03-08,Sí
+PROD-0053,Friegasuelos Limón,Limpieza,Auchan,4.08,20,3.27,102,Pasillo 06,2028-11-22,Sí
+PROD-0147,Friegasuelos Limón,Limpieza,Auchan,4.57,10,4.11,232,Pasillo 06,2029-10-18,No
+PROD-0054,Lejía 1L,Limpieza,Auchan,3.55,0,3.55,142,Pasillo 06,2030-08-16,No
+PROD-0148,Lejía 1L Premium,Limpieza,Eroski,1.4,20,1.12,119,Pasillo 06,2027-12-25,Sí
+PROD-0055,Limpia Cristales,Limpieza,Hacendado,7.86,10,7.07,274,Pasillo 06,2030-07-18,Sí
+PROD-0149,Limpia Cristales,Limpieza,Consum,4.04,5,3.83,358,Pasillo 06,2029-09-24,Sí
+PROD-0146,Papel Higiénico 12 rollos,Limpieza,Eroski,6.18,15,5.25,115,Pasillo 06,2030-08-16,Sí
+PROD-0052,Papel Higiénico 12 rollos Premium,Limpieza,El Corte Inglés,6.39,0,6.39,210,Pasillo 06,2028-08-29,Sí
+PROD-0051,Suavizante Floral (Formato Ahorro),Limpieza,Consum,1.8,0,1.8,409,Pasillo 06,2030-05-20,Sí
+PROD-0145,Suavizante Floral (Formato Ahorro),Limpieza,Eroski,6.7,5,6.37,246,Pasillo 06,2030-01-02,Sí
+PROD-0059,Champú Anticaspa Premium,Cuidado Personal,Carrefour,7.41,10,6.67,319,Pasillo 07,2029-10-09,No
+PROD-0153,Champú Anticaspa Premium,Cuidado Personal,Eroski,6.93,10,6.24,50,Pasillo 07,2029-06-09,Sí
+PROD-0058,Champú Reparador 400ml,Cuidado Personal,Aliada,4.45,50,2.22,412,Pasillo 07,2029-11-02,No
+PROD-0152,Champú Reparador 400ml,Cuidado Personal,Eroski,5.16,5,4.9,480,Pasillo 07,2028-01-02,Sí
+PROD-0064,Crema Hidratante,Cuidado Personal,Auchan,3.08,0,3.08,419,Pasillo 07,2029-10-18,Sí
+PROD-0158,Crema Hidratante,Cuidado Personal,El Corte Inglés,3.0,5,2.85,89,Pasillo 07,2028-01-22,No
+PROD-0159,Cuchillas de Afeitar,Cuidado Personal,Carrefour,4.12,10,3.71,398,Pasillo 07,2029-05-08,No
+PROD-0065,Cuchillas de Afeitar (Formato Ahorro),Cuidado Personal,Consum,0.94,0,0.94,243,Pasillo 07,2029-03-10,Sí
+PROD-0062,Desodorante Roll-on,Cuidado Personal,Marca Local,2.72,10,2.45,220,Pasillo 07,2029-03-20,No
+PROD-0156,Desodorante Roll-on (Formato Ahorro),Cuidado Personal,El Corte Inglés,6.33,0,6.33,403,Pasillo 07,2028-09-08,Sí
+PROD-0060,Gel de Ducha Dermoprotector,Cuidado Personal,El Corte Inglés,3.01,5,2.86,356,Pasillo 07,2029-06-19,Sí
+PROD-0154,Gel de Ducha Dermoprotector,Cuidado Personal,Aliada,1.5,20,1.2,434,Pasillo 07,2028-03-02,Sí
+PROD-0063,Jabón de Manos,Cuidado Personal,Carrefour,6.47,0,6.47,491,Pasillo 07,2029-10-04,No
+PROD-0157,Jabón de Manos,Cuidado Personal,Hacendado,1.41,0,1.41,443,Pasillo 07,2028-04-12,No
+PROD-0155,Pasta de Dientes con Flúor,Cuidado Personal,Aliada,7.92,0,7.92,402,Pasillo 07,2028-02-08,Sí
+PROD-0061,Pasta de Dientes con Flúor Premium,Cuidado Personal,Auchan,5.61,0,5.61,462,Pasillo 07,2029-08-21,No
+PROD-0073,Galletas María,Snacks y Dulces,Consum,3.71,0,3.71,463,Pasillo 08,2030-04-25,No
+PROD-0167,Galletas María,Snacks y Dulces,Consum,3.04,15,2.58,62,Pasillo 08,2028-11-26,Sí
+PROD-0164,Mix de Frutos Secos,Snacks y Dulces,Consum,3.66,20,2.93,423,Pasillo 08,2029-01-11,Sí
+PROD-0070,Mix de Frutos Secos (Formato Ahorro),Snacks y Dulces,Marca Local,6.35,0,6.35,248,Pasillo 08,2028-09-06,Sí
+PROD-0069,Nachos con Queso (Formato Ahorro),Snacks y Dulces,Auchan,7.24,20,5.79,380,Pasillo 08,2029-03-04,Sí
+PROD-0163,Nachos con Queso (Formato Ahorro),Snacks y Dulces,Carrefour,3.96,15,3.36,309,Pasillo 08,2028-03-10,Sí
+PROD-0071,Palomitas Microondas,Snacks y Dulces,El Corte Inglés,3.09,50,1.54,457,Pasillo 08,2028-02-20,Sí
+PROD-0165,Palomitas Microondas,Snacks y Dulces,Marca Local,2.49,0,2.49,488,Pasillo 08,2029-11-02,Sí
+PROD-0066,Patatas Fritas Clásicas,Snacks y Dulces,Carrefour,3.56,0,3.56,75,Pasillo 08,2030-06-01,No
+PROD-0160,Patatas Fritas Clásicas Premium,Snacks y Dulces,Marca Local,0.92,50,0.46,401,Pasillo 08,2028-10-03,Sí
+PROD-0067,Patatas Sabor Jamón,Snacks y Dulces,Aliada,5.75,0,5.75,237,Pasillo 08,2029-06-22,Sí
+PROD-0161,Patatas Sabor Jamón,Snacks y Dulces,Marca Local,3.57,0,3.57,351,Pasillo 08,2029-04-15,Sí
+PROD-0068,Pipas Saladas 200g,Snacks y Dulces,Marca Local,5.54,10,4.99,286,Pasillo 08,2030-07-29,No
+PROD-0162,Pipas Saladas 200g (Formato Ahorro),Snacks y Dulces,Eroski,1.7,5,1.61,64,Pasillo 08,2029-08-30,No
+PROD-0072,Tableta de Chocolate con Leche,Snacks y Dulces,Eroski,5.83,15,4.95,32,Pasillo 08,2029-01-20,No
+PROD-0166,Tableta de Chocolate con Leche,Snacks y Dulces,El Corte Inglés,3.8,10,3.42,381,Pasillo 08,2030-03-10,Sí
+PROD-0079,Croquetas de Jamón,Congelados,Hacendado,8.0,0,8.0,179,Pasillo 09,2026-12-25,Sí
+PROD-0173,Croquetas de Jamón,Congelados,Carrefour,3.34,10,3.0,369,Pasillo 09,2028-05-19,Sí
+PROD-0076,Guisantes Congelados 1kg (Formato Ahorro),Congelados,Consum,7.31,0,7.31,303,Pasillo 09,2027-01-09,Sí
+PROD-0170,Guisantes Congelados 1kg Premium,Congelados,Auchan,6.66,50,3.33,314,Pasillo 09,2026-11-11,Sí
+PROD-0078,Helado de Chocolate,Congelados,Carrefour,6.16,15,5.24,425,Pasillo 09,2027-07-01,No
+PROD-0172,Helado de Chocolate,Congelados,Aliada,1.65,0,1.65,324,Pasillo 09,2027-01-17,No
+PROD-0171,Helado de Vainilla 500ml,Congelados,El Corte Inglés,2.89,10,2.6,173,Pasillo 09,2026-10-22,Sí
+PROD-0077,Helado de Vainilla 500ml (Formato Ahorro),Congelados,Eroski,2.53,0,2.53,167,Pasillo 09,2028-01-24,No
+PROD-0174,Merluza en Filetes,Congelados,Marca Local,4.65,15,3.95,226,Pasillo 09,2028-02-25,No
+PROD-0080,Merluza en Filetes (Formato Ahorro),Congelados,Aliada,5.22,20,4.18,64,Pasillo 09,2027-02-10,No
+PROD-0081,Patatas prefritas 1kg,Congelados,Auchan,1.84,0,1.84,310,Pasillo 09,2027-04-01,Sí
+PROD-0175,Patatas prefritas 1kg,Congelados,Marca Local,1.44,0,1.44,220,Pasillo 09,2027-08-02,No
+PROD-0074,Pizza 4 Quesos,Congelados,Aliada,6.18,15,5.25,436,Pasillo 09,2028-04-19,No
+PROD-0168,Pizza 4 Quesos (Formato Ahorro),Congelados,El Corte Inglés,3.2,50,1.6,295,Pasillo 09,2027-05-21,No
+PROD-0075,Pizza Barbacoa,Congelados,Marca Local,0.81,15,0.69,172,Pasillo 09,2027-04-03,Sí
+PROD-0169,Pizza Barbacoa,Congelados,Aliada,6.86,0,6.86,188,Pasillo 09,2027-07-28,No
+PROD-0176,Salteado de Verduras,Congelados,Aliada,5.04,0,5.04,3,Pasillo 09,2027-08-20,Sí
+PROD-0082,Salteado de Verduras Premium,Congelados,Aliada,4.86,15,4.13,464,Pasillo 09,2027-11-26,Sí
+PROD-0084,Aceite de Girasol 1L,Despensa y Conservas,Consum,3.34,10,3.01,259,Pasillo 10,2026-10-28,Sí
+PROD-0178,Aceite de Girasol 1L,Despensa y Conservas,Consum,4.73,10,4.26,342,Pasillo 10,2026-12-28,Sí
+PROD-0083,Aceite de Oliva Virgen Extra 1L,Despensa y Conservas,Hacendado,12.18,0,12.18,154,Pasillo 10,2028-05-17,Sí
+PROD-0177,Aceite de Oliva Virgen Extra 1L,Despensa y Conservas,Consum,10.98,0,10.98,220,Pasillo 10,2027-02-25,Sí
+PROD-0085,Arroz Redondo 1kg (Formato Ahorro),Despensa y Conservas,Consum,7.71,20,6.17,325,Pasillo 10,2027-03-21,Sí
+PROD-0179,Arroz Redondo 1kg (Formato Ahorro),Despensa y Conservas,Consum,0.74,0,0.74,471,Pasillo 10,2027-09-01,Sí
+PROD-0088,Atún Claro en Aceite (Pack 3) (Formato Ahorro),Despensa y Conservas,Hacendado,4.04,15,3.43,312,Pasillo 10,2027-09-25,No
+PROD-0182,Atún Claro en Aceite (Pack 3) (Formato Ahorro),Despensa y Conservas,Auchan,4.96,0,4.96,268,Pasillo 10,2027-11-25,No
+PROD-0092,Azúcar Blanco 1kg,Despensa y Conservas,Eroski,2.24,0,2.24,354,Pasillo 10,2027-08-25,Sí
+PROD-0186,Azúcar Blanco 1kg,Despensa y Conservas,El Corte Inglés,4.89,10,4.4,348,Pasillo 10,2027-09-04,Sí
+PROD-0093,Café Molido Natural 250g,Despensa y Conservas,Eroski,3.75,50,1.87,381,Pasillo 10,2027-09-19,Sí
+PROD-0187,Café Molido Natural 250g,Despensa y Conservas,Hacendado,5.27,5,5.01,407,Pasillo 10,2028-06-12,Sí
+PROD-0094,Café en Cápsulas,Despensa y Conservas,Carrefour,2.46,0,2.46,61,Pasillo 10,2027-09-04,Sí
+PROD-0188,Café en Cápsulas,Despensa y Conservas,Auchan,4.02,0,4.02,19,Pasillo 10,2027-10-28,Sí
+PROD-0090,Garbanzos Secos 1kg (Formato Ahorro),Despensa y Conservas,Carrefour,2.64,50,1.32,5,Pasillo 10,2027-04-29,Sí
+PROD-0184,Garbanzos Secos 1kg (Formato Ahorro),Despensa y Conservas,Carrefour,5.98,0,5.98,419,Pasillo 10,2027-06-14,Sí
+PROD-0183,Lentejas Cocidas 400g,Despensa y Conservas,Aliada,1.17,0,1.17,324,Pasillo 10,2028-04-11,Sí
+PROD-0089,Lentejas Cocidas 400g (Formato Ahorro),Despensa y Conservas,Auchan,2.17,5,2.06,408,Pasillo 10,2027-09-29,Sí
+PROD-0086,Macarrones 500g,Despensa y Conservas,Marca Local,5.41,50,2.71,315,Pasillo 10,2028-02-23,Sí
+PROD-0180,Macarrones 500g,Despensa y Conservas,Eroski,3.69,15,3.14,58,Pasillo 10,2026-11-06,Sí
+PROD-0091,Sal Fina,Despensa y Conservas,Marca Local,4.71,20,3.77,123,Pasillo 10,2028-03-01,Sí
+PROD-0185,Sal Fina,Despensa y Conservas,Marca Local,5.06,0,5.06,389,Pasillo 10,2027-04-15,Sí
+PROD-0087,Tomate Frito 400g,Despensa y Conservas,Auchan,2.59,0,2.59,436,Pasillo 10,2027-01-12,Sí
+PROD-0181,Tomate Frito 400g Premium,Despensa y Conservas,Consum,4.0,10,3.6,353,Pasillo 10,2027-01-14,Sí

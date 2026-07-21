@@ -1,11 +1,13 @@
 package es.upsa.store.readerFiles;
 
+
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
+import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDPageTree;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.jboss.logging.Logger;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.io.IOException;
@@ -17,8 +19,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+@Slf4j
 @ApplicationScoped
 public class DocumentFromFilePDF implements DocumentLoaderService {
+
+    private final Logger logger;
+
+    @Inject
+    public DocumentFromFilePDF(Logger logger) {
+        this.logger = logger;
+    }
 
     @Override
     public List<Document> load(Path folder) throws IOException {
@@ -42,26 +52,38 @@ public class DocumentFromFilePDF implements DocumentLoaderService {
 
     private List<Document> loadPdf(Path pdfPath) throws IOException {
         List<Document> segments = new ArrayList<>();
+        // Sin el prefijo UUID de la subida: "a8a7c73a-..._PlayStation_5.pdf" -> "PlayStation_5.pdf"
+        String nombreLimpio = pdfPath.getFileName().toString().replaceFirst("^[0-9a-fA-F-]{36}_", "");
+
         try (PDDocument pdf = PDDocument.load(pdfPath.toFile())) {
             PDFTextStripper stripper = new PDFTextStripper();
-            PDPageTree pages = pdf.getPages();
-            int pageNum = 1;
-            for (PDPage page : pages) {
-                // Extrae solo texto de la página
+            int totalPaginas = pdf.getNumberOfPages();
+            for (int pageNum = 1; pageNum <= totalPaginas; pageNum++) {
                 stripper.setStartPage(pageNum);
                 stripper.setEndPage(pageNum);
                 String text = stripper.getText(pdf);
+
+                // Antes: lanzar excepción rompía TODA la ingesta por una página en blanco.
+                // Ahora: se omite la página y se avisa.
                 if (text == null || text.isBlank()) {
-                    throw new IllegalArgumentException(
-                            "PDF sin contenido de texto válido en página " + pageNum + ": " + pdfPath);
+                    log.warn("Página {} de '{}' sin texto; se omite.", pageNum, nombreLimpio);
+                    continue;
                 }
-                // Metadatos con nombre de archivo y número de página
+
+                // PDFBox alinea columnas con tabuladores/espacios ("dispone de      16      GB").
+                // Esos huecos ensucian el embedding (peor score) y el prompt (más tokens).
+                // Se colapsan espacios/tabs preservando los saltos de línea, que el
+                // splitter recursivo usa para respetar párrafos.
+                String textoLimpio = text.replaceAll("[^\\S\\n]+", " ").trim();
+
                 Map<String, Object> meta = new LinkedHashMap<>();
-                meta.put("file", pdfPath.getFileName().toString());
+                meta.put("file", nombreLimpio);
                 meta.put("page", pageNum);
-                segments.add(Document.from(text, Metadata.from(meta)));
-                pageNum++;
+                segments.add(Document.from(textoLimpio, Metadata.from(meta)));
             }
+        }
+        if (segments.isEmpty()) {
+            log.warn("El PDF '{}' no aportó ninguna página con texto.", nombreLimpio);
         }
         return segments;
     }
