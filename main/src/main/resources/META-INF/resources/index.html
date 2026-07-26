@@ -181,7 +181,7 @@
                 url: "/service/ingest",
                 type: "POST",
                 dataType: "text",
-                headers: { "X-API-KEY": ADMIN_KEY },
+                headers: { "X-API-KEY": getAdminKey() },
                 success: data => appendSystemMessage("Ingestión completada: " + data),
                 error: (xhr, status, error) => appendSystemMessage("Error en la ingesta: " + error)
             });
@@ -197,7 +197,7 @@
             $.ajax({
                 url: "/service/reset",
                 type: "POST",
-                headers: { "X-API-KEY": ADMIN_KEY },
+                headers: { "X-API-KEY": getAdminKey() },
                 dataType: "text",
                 success: data => {
                     setTimeout(() => location.reload(), 250);
@@ -247,7 +247,7 @@
                 url: "/service/upload",
                 type: "POST",
                 data: formData,
-                headers: { "X-API-KEY": ADMIN_KEY },
+                headers: { "X-API-KEY": getAdminKey() },
                 contentType: false,
                 processData: false,
                 success: data => {
@@ -282,6 +282,17 @@
                 sel.append('<option value="mistral">mistral (Ollama local)</option>');
             });
     }
+    // La clave de administrador solo se pide la PRIMERA vez que se pulsa
+    // un botón de administración (lazy), no en cada carga de página.
+    let adminKey = null;
+    function getAdminKey() {
+        if (adminKey === null) {
+            adminKey = prompt("Introduce la clave de administrador para esta sesión:") || "";
+        }
+        return adminKey;
+    }
+
+    cargarModelos();
 
     function connect() {
         if (!connected) {
@@ -310,6 +321,9 @@
                         break;
                 }
             };
+
+            const wsProto = location.protocol === "https:" ? "wss://" : "ws://";
+            socket = new WebSocket(wsProto + location.host + "/chat/" + username);
         }
     }
 

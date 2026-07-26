@@ -4,7 +4,7 @@ set -euo pipefail
 cleanup() {
   echo
   echo "Deteniendo servicios de Docker Compose…"
-  docker compose down --rmi local -v
+  docker compose down  # sin -v (datos intactos) y sin --rmi (imagen cacheada)
 }
 trap cleanup EXIT
 
@@ -14,13 +14,12 @@ if ! command -v ollama >/dev/null 2>&1; then
 fi
 
 echo "Descargando modelos Ollama…"
-ollama pull llama3.2
-ollama pull mxbai-embed-large
-ollama pull bge-large
-ollama pull mistral:instruct
-ollama pull deepseek-r1:7b
-ollama pull bge-m3
-ollama pull llama3.1:8b
+ollama pull bge-m3             # embeddings (obligatorio)
+ollama pull llama3.1:8b        # modelo por defecto (detector + reescritor) y slot 'llama'
+ollama pull mistral:instruct   # comparativa
+ollama pull deepseek-r1:7b     # comparativa
+ollama pull llama3.2           # baseline 3B de la comparativa (bórralo si no lo usas)
+
 
 echo "Levantando servicios de Docker Compose en background…"
 docker compose up -d
@@ -42,4 +41,4 @@ else
 fi
 
 echo "Iniciando Quarkus en modo dev… (Ctrl+C para salir)"
-mvn quarkus:dev
+./mvnw quarkus:dev
