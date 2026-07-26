@@ -3,11 +3,11 @@ package es.upsa.store.readerFiles;
 
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
-import jakarta.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
+
+
+
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
-import org.jboss.logging.Logger;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.io.IOException;
@@ -18,17 +18,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
+
 @ApplicationScoped
 public class DocumentFromFilePDF implements DocumentLoaderService {
 
-    private final Logger logger;
-
-    @Inject
-    public DocumentFromFilePDF(Logger logger) {
-        this.logger = logger;
-    }
+    private static final Logger log = LoggerFactory.getLogger(DocumentFromFilePDF.class);
 
     @Override
     public List<Document> load(Path folder) throws IOException {
