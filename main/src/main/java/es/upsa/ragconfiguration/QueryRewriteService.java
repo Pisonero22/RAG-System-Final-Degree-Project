@@ -26,8 +26,9 @@ public interface QueryRewriteService {
         Mensaje nuevo del usuario: {mensaje}
 
         Reescribe el mensaje nuevo como UNA consulta de búsqueda autocontenida, en el
-        idioma del mensaje, sustituyendo pronombres y referencias ("eso", "el segundo",
-        "¿y cuánto cuesta?") por aquello a lo que se refieren en la conversación.
+        idioma del mensaje. Sustituye pronombres, elipsis y referencias implícitas
+        (cualquier palabra que solo se entienda leyendo la conversación) por aquello
+        a lo que se refieren.
 
         Reglas:
         - Si el mensaje ya se entiende por sí solo, devuélvelo EXACTAMENTE igual.
@@ -35,9 +36,11 @@ public interface QueryRewriteService {
         - No respondas a la pregunta.
         - Devuelve SOLO la consulta, en una línea, sin comillas ni explicaciones.
 
-        Ejemplos:
+        Ejemplos (el patrón vale para cualquier atributo: precio, stock, fecha, autor...):
         (hablando de la PlayStation 5) "¿y cuánto cuesta?" -> precio de la PlayStation 5
+        (hablando de un dron DJI) "¿y cuánto stock hay?" -> stock disponible del dron DJI
         (hablando del accidente de la discoteca) "¿cuántos fallecidos hubo?" -> fallecidos en el accidente de la discoteca
+        (el asistente mencionó la PS5 y un dron DJI) "háblame del segundo" -> dron DJI
         "¿Qué juegos exclusivos tiene la PS5?" -> ¿Qué juegos exclusivos tiene la PS5?
         """)
     String reescribir(String historial, String mensaje);

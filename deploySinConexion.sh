@@ -4,7 +4,7 @@ set -euo pipefail
 cleanup() {
   echo
   echo "Deteniendo servicios de Docker Compose…"
-  docker compose down --rmi local -v
+  docker compose down --rmi local
 }
 trap cleanup EXIT
 
@@ -33,4 +33,4 @@ else
 fi
 
 echo "Iniciando Quarkus en modo dev… (Ctrl+C para salir)"
-mvn quarkus:dev
+../mvnw quarkus:dev
