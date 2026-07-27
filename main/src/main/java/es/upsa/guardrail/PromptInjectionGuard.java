@@ -23,19 +23,18 @@ public class PromptInjectionGuard implements InputGuardrail {
 
     @Override
     public InputGuardrailResult validate(UserMessage userMessage) {
+        long t0 = System.nanoTime();
         try {
             double score = detector.isInjection(userMessage.singleText());
-            log.debug("Score de inyección para \"{}\": {}", userMessage.singleText(), score);
+            long ms = (System.nanoTime() - t0) / 1_000_000;
+            log.debug("Guardrail ({} ms) score={} para \"{}\"", ms, score, userMessage.singleText());
             if (score > UMBRAL) {
                 return failure("Intento de prompt injection (score " + score + ")");
             }
             return success();
         } catch (Exception e) {
-            // El detector es a su vez un LLM y puede devolver algo no parseable a double.
-            // Decisión fail-open: se registra y se deja pasar el mensaje (bloquear chats
-            // legítimos por un fallo del clasificador es peor que dejar pasar un dudoso;
-            // el system prompt del asistente sigue actuando como segunda barrera).
-            log.warn("El detector de inyección falló, se permite el mensaje: {}", e.getMessage());
+            long ms = (System.nanoTime() - t0) / 1_000_000;
+            log.warn("El detector de inyección falló ({} ms), se permite el mensaje: {}", ms, e.getMessage());
             return success();
         }
     }

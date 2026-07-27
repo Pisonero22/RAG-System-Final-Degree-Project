@@ -9,8 +9,5 @@ services:
     volumes:
       # Persistencia: los embeddings sobreviven a paradas y reinicios.
       # Si cambias de modelo de embeddings o de dimensión: borra el volumen
-      # (docker volume ls / docker volume rm ...) o FLUSHALL, y reingesta.
       - ./redis-data:/data
-volumes:
-  redis-data:
 

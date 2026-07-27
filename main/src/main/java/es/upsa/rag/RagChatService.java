@@ -50,6 +50,7 @@ public class RagChatService {
         String modeloReal = tagReal(slot);
         String pregunta = message.trim();
         try {
+
             // 1) Reescritura de la consulta con historial (solo para la BÚSQUEDA;
             //    el modelo del chat recibe la pregunta original del usuario).
             String consulta = consultaParaBusqueda(username, pregunta);
@@ -60,8 +61,7 @@ public class RagChatService {
             long t0 = System.nanoTime();
             String respuesta = assistant.chat(slot, username, contexto, pregunta);
             long ms = (System.nanoTime() - t0) / 1_000_000;
-
-            log.info("[{}] slot='{}' modelo='{}' generó la respuesta en {} ms",
+            log.info("[{}] slot='{}' modelo='{}' respondió en {} ms (guardrail incluido)",
                     username, slot, modeloReal, ms);
             return respuesta;
 
@@ -113,19 +113,25 @@ public class RagChatService {
             return pregunta;
         }
         try {
+            long t0 = System.nanoTime();
             String reescrita = queryRewriter.reescribir(historial, pregunta);
+            long msReescritura = (System.nanoTime() - t0) / 1_000_000;
             if (reescrita == null || reescrita.isBlank()) {
+                log.debug("[{}] reescritura vacía ({} ms), se usa la pregunta original", username, msReescritura);
                 return pregunta;
             }
             reescrita = reescrita.strip();
             // Debe devolver UNA consulta corta. Si se pone a conversar, no nos fiamos.
             if (reescrita.contains("\n") || reescrita.length() > 300) {
-                log.debug("[{}] reescritura descartada (formato inesperado)", username);
+                log.debug("[{}] reescritura descartada ({} ms, formato inesperado)",
+                        username, msReescritura);
                 return pregunta;
             }
-            if (!reescrita.equalsIgnoreCase(pregunta)) {
-                log.debug("[{}] consulta reescrita para búsqueda: \"{}\" -> \"{}\"",
-                        username, pregunta, reescrita);
+            if (reescrita.equalsIgnoreCase(pregunta)) {
+                log.debug("[{}] reescritura sin cambios ({} ms)", username, msReescritura);
+            } else {
+                log.debug("[{}] consulta reescrita ({} ms): \"{}\" -> \"{}\"",
+                        username, msReescritura, pregunta, reescrita);
             }
             return reescrita;
         } catch (Exception e) {
