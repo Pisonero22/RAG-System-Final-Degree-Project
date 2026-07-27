@@ -58,6 +58,11 @@ public class IngestionRedisConfiguration implements StorageProvider {
     RedisDataSource redis;
 
 
+    private record Corpus(List<Document> filas, List<Document> prosa) {
+        boolean vacio() { return filas.isEmpty() && prosa.isEmpty(); }
+        int total()     { return filas.size() + prosa.size(); }
+    }
+
     @Override
     public void clearIngestionCache() {
         var keyCommands = redis.key();
@@ -98,6 +103,34 @@ public class IngestionRedisConfiguration implements StorageProvider {
         log.info("Ingesta: {} filas CSV + {} docs de texto/PDF", csvDocs.size(), textDocs.size());
     }
 
+    private Corpus cargarCorpus() throws IOException {
+        List<Document> filas = documentFromFileCSV.load(csvFiles);
+        List<Document> prosa = new ArrayList<>();
+        prosa.addAll(documentFromFileTxt.load(txtFile));
+        prosa.addAll(documentFromFilePDF.load(pdfFiles));
+        return new Corpus(filas, prosa);
+    }
+
+    private void indexar(Corpus corpus) {
+        // CSV: cada fila ya es un documento autocontenido -> SIN splitter
+        if (!corpus.filas().isEmpty()) {
+            EmbeddingStoreIngestor.builder()
+                    .embeddingStore(embeddingStore)
+                    .embeddingModel(embeddingModel)
+                    .build()
+                    .ingest(corpus.filas());
+        }
+        // TXT y PDF: prosa -> chunks con solape
+        if (!corpus.prosa().isEmpty()) {
+            EmbeddingStoreIngestor.builder()
+                    .embeddingStore(embeddingStore)
+                    .embeddingModel(embeddingModel)
+                    .documentSplitter(recursive(512, 128))
+                    .build()
+                    .ingest(corpus.prosa());
+        }
+        log.info("Ingesta: {} filas CSV + {} docs de texto/PDF", corpus.filas().size(), corpus.prosa().size());
+    }
 
     /**
      * Reset = borrar todas las claves de embeddings y reingestar.
@@ -118,9 +151,15 @@ public class IngestionRedisConfiguration implements StorageProvider {
      */
     @Override
     public void resetEmbeddingStore() throws IOException {
+        Corpus corpus = cargarCorpus();          // 1) cargar y validar
+        if (corpus.vacio()) {
+            log.warn("Reset CANCELADO: no se ha podido cargar ningún documento. "
+                    + "El índice actual se mantiene intacto.");
+            return;                              //    mejor el índice viejo que ninguno
+        }
         clearIngestionCache();
-        ingest();
-        log.info("Reset completado: claves borradas y documentos reingestados (índice intacto).");
+        indexar(corpus);
+        log.info("Reset completado: {} documentos reindexados (índice intacto).", corpus.total());
     }
 
     @Override

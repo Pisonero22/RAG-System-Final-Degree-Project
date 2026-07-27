@@ -5,10 +5,8 @@ import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
-import es.upsa.guardrail.PromptInjectionGuard;
 import io.quarkiverse.langchain4j.ModelName;
 import io.quarkiverse.langchain4j.RegisterAiService;
-import io.quarkiverse.langchain4j.guardrails.InputGuardrails;
 import jakarta.enterprise.context.ApplicationScoped;
 
 @RegisterAiService
@@ -41,7 +39,6 @@ public interface RagAssistant {
      CONTEXTO:
      {context}
     """)
-    @InputGuardrails(PromptInjectionGuard.class)
     String chat(@ModelName String modelName,
                              @MemoryId String username,
                            @V("context") String context,

@@ -7,10 +7,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -22,20 +23,23 @@ import java.util.stream.Stream;
 @ApplicationScoped
 public class DocumentFromFileCSV implements DocumentLoaderService {
 
+    private static final Logger log = LoggerFactory.getLogger(DocumentFromFilePDF.class);
+
     @Override
     public List<Document> load(Path folder) throws IOException {
         if (!Files.isDirectory(folder)) {
             throw new IllegalArgumentException("La ruta debe ser un directorio: " + folder);
         }
         List<Document> documents = new ArrayList<>();
-        try (Stream<Path> files = Files.list(folder)) {
+        try (Stream<Path> files = Files.walk(folder)) {
             files.filter(Files::isRegularFile)
                     .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"))
                     .forEach(p -> {
                         try {
                             documents.addAll(loadCsvFile(p));
-                        } catch (IOException e) {
-                            throw new UncheckedIOException("Error leyendo CSV " + p, e);
+                        } catch (Exception e) {
+                            log.warn("PDF '{}' ilegible; se OMITE de la ingesta: {}",
+                                    p.getFileName(), e.toString());
                         }
                     });
         }
@@ -77,7 +81,8 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
             }
         }
         if (documents.isEmpty()) {
-            throw new IllegalStateException("No se encontraron filas en el CSV: " + csvPath);
+            log.warn("CSV vacio");
+            return List.of();
         }
         return documents;
     }

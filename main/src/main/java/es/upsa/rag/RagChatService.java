@@ -2,6 +2,7 @@ package es.upsa.rag;
 
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
+import es.upsa.guardrail.PromptInjectionDetectionService;
 import es.upsa.ragconfiguration.QueryRewriteService;
 import es.upsa.ragconfiguration.RagAssistant;
 import dev.langchain4j.data.message.UserMessage;
@@ -35,13 +36,16 @@ public class RagChatService {
     @Inject
     RagChatMemoryStore memoryStore;
 
+    @Inject
+    PromptInjectionDetectionService detector;
+    @ConfigProperty(name = "guardrail.threshold", defaultValue = "0.89")
+    double umbralInyeccion;
+
     @ConfigProperty(name = "rag.query-rewrite.enabled", defaultValue = "true")
     boolean rewriteEnabled;
 
 
     public String chat(String username, String message, String modelProvider){
-        // Defensa en profundidad: el WebSocket ya filtra vacíos, pero este servicio
-        // también puede llamarse desde otros puntos (tests, REST futuro...).
         if (message == null || message.isBlank()) {
             return "No he recibido ningún mensaje. Escribe algo y te respondo.";
         }
@@ -49,8 +53,17 @@ public class RagChatService {
         String slot = normalizarModelo(modelProvider);
         String modeloReal = tagReal(slot);
         String pregunta = message.trim();
-        try {
 
+
+        // 0) GUARDRAIL EN LA PUERTA: antes de gastar el reescritor (un LLM) y la
+        //    búsqueda vectorial en un mensaje que vamos a rechazar.
+        if (esInyeccion(username, pregunta)) {
+            log.info("[{}] mensaje bloqueado por el detector de prompt injection", username);
+            return "Mensaje bloqueado: se ha detectado un posible intento de prompt injection.";
+        }
+
+
+        try {
             // 1) Reescritura de la consulta con historial (solo para la BÚSQUEDA;
             //    el modelo del chat recibe la pregunta original del usuario).
             String consulta = consultaParaBusqueda(username, pregunta);
@@ -61,18 +74,26 @@ public class RagChatService {
             long t0 = System.nanoTime();
             String respuesta = assistant.chat(slot, username, contexto, pregunta);
             long ms = (System.nanoTime() - t0) / 1_000_000;
-            log.info("[{}] slot='{}' modelo='{}' respondió en {} ms (guardrail incluido)",
+            log.info("[{}] slot='{}' modelo='{}' respondió en {} ms",
                     username, slot, modeloReal, ms);
             return respuesta;
 
-        } catch (GuardrailException e) {
-            log.info("[{}] slot='{}' modelo='{}': mensaje bloqueado por guardrail: {}",
-                    username, slot, modeloReal, e.getMessage());
-            return "Mensaje bloqueado: se ha detectado un posible intento de prompt injection.";
         } catch (Exception e) {
-            log.error("[{}] slot='{}' modelo='{}': error procesando mensaje",
-                    username, slot, modeloReal, e);
+            log.error("[{}] slot='{}' modelo='{}': error procesando mensaje", username, slot, modeloReal, e);
             return "Ha ocurrido un error procesando tu mensaje. Inténtalo de nuevo.";
+        }
+    }
+    private boolean esInyeccion(String username, String pregunta) {
+        long t0 = System.nanoTime();
+        try {
+            double score = detector.isInjection(pregunta);
+            long ms = (System.nanoTime() - t0) / 1_000_000;
+            log.debug("[{}] guardrail ({} ms) score={} para \"{}\"", username, ms, score, pregunta);
+            return score > umbralInyeccion;
+        } catch (Exception e) {
+            log.warn("[{}] el detector de inyección falló ({} ms), se permite el mensaje: {}",
+                    username, (System.nanoTime() - t0) / 1_000_000, e.getMessage());
+            return false;
         }
     }
 

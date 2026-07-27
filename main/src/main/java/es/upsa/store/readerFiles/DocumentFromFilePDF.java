@@ -27,20 +27,24 @@ public class DocumentFromFilePDF implements DocumentLoaderService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentFromFilePDF.class);
 
+
+    private static final int PUENTE_CHARS = 300;
+
     @Override
     public List<Document> load(Path folder) throws IOException {
         if (!Files.isDirectory(folder)) {
             throw new IllegalArgumentException("La ruta debe ser un directorio: " + folder);
         }
         List<Document> docs = new ArrayList<>();
-        try (Stream<Path> paths = Files.list(folder)) {
+        try (Stream<Path> paths = Files.walk(folder)) {
             paths.filter(Files::isRegularFile)
                     .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".pdf"))
                     .forEach(p -> {
                         try {
                             docs.addAll(loadPdf(p));
-                        } catch (IOException e) {
-                            throw new RuntimeException("Error leyendo PDF " + p, e);
+                        } catch (Exception e) {
+                            log.warn("PDF '{}' ilegible; se OMITE de la ingesta: {}",
+                                    p.getFileName(), e.toString());
                         }
                     });
         }
@@ -53,40 +57,55 @@ public class DocumentFromFilePDF implements DocumentLoaderService {
     }
 
     private List<Document> loadPdf(Path pdfPath) throws IOException {
-        List<Document> segments = new ArrayList<>();
         // Sin el prefijo UUID de la subida: "a8a7c73a-..._PlayStation_5.pdf" -> "PlayStation_5.pdf"
         String nombreLimpio = pdfPath.getFileName().toString().replaceFirst("^[0-9a-fA-F-]{36}_", "");
+        // ---- FASE 1: extraer el texto de las páginas que tienen texto ----
+        List<Integer> numeros = new ArrayList<>();   // número REAL de página (para la cita)
+        List<String>  textos  = new ArrayList<>();
 
         try (PDDocument pdf = PDDocument.load(pdfPath.toFile())) {
             PDFTextStripper stripper = new PDFTextStripper();
             int totalPaginas = pdf.getNumberOfPages();
+
             for (int pageNum = 1; pageNum <= totalPaginas; pageNum++) {
                 stripper.setStartPage(pageNum);
                 stripper.setEndPage(pageNum);
                 String text = stripper.getText(pdf);
 
-                // Antes: lanzar excepción rompía TODA la ingesta por una página en blanco.
-                // Ahora: se omite la página y se avisa.
                 if (text == null || text.isBlank()) {
                     log.warn("Página {} de '{}' sin texto; se omite.", pageNum, nombreLimpio);
                     continue;
                 }
-
-                // PDFBox alinea columnas con tabuladores/espacios ("dispone de      16      GB").
-                // Esos huecos ensucian el embedding (peor score) y el prompt (más tokens).
-                // Se colapsan espacios/tabs preservando los saltos de línea, que el
-                // splitter recursivo usa para respetar párrafos.
-                String textoLimpio = text.replaceAll("[^\\S\\n]+", " ").trim();
-
-                Map<String, Object> meta = new LinkedHashMap<>();
-                meta.put("file", nombreLimpio);
-                meta.put("page", pageNum);
-                segments.add(Document.from(textoLimpio, Metadata.from(meta)));
+                numeros.add(pageNum);
+                textos.add(text.replaceAll("[^\\S\\n]+", " ").trim());
             }
         }
+        List<Document> segments = new ArrayList<>();
+        for (int i = 0; i < textos.size(); i++) {
+            String puente = (i == 0) ? "" : cola(textos.get(i - 1), PUENTE_CHARS);
+            String contenido = puente.isEmpty() ? textos.get(i)
+                    : puente + "\n" + textos.get(i);
+
+            Map<String, Object> meta = new LinkedHashMap<>();
+            meta.put("file", nombreLimpio);
+            meta.put("page", numeros.get(i));
+            segments.add(Document.from(contenido, Metadata.from(meta)));
+        }
+
         if (segments.isEmpty()) {
             log.warn("El PDF '{}' no aportó ninguna página con texto.", nombreLimpio);
         }
         return segments;
+
+    }
+
+    /** Últimos maxChars caracteres, sin empezar a mitad de palabra. */
+    private static String cola(String texto, int maxChars) {
+        if (texto.length() <= maxChars) {
+            return texto;
+        }
+        String recorte = texto.substring(texto.length() - maxChars);
+        int primerEspacio = recorte.indexOf(' ');
+        return (primerEspacio >= 0) ? recorte.substring(primerEspacio + 1) : recorte;
     }
 }

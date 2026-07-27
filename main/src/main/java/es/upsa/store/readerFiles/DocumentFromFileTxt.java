@@ -9,7 +9,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.util.List;
 
 @ApplicationScoped
@@ -26,10 +28,8 @@ public class DocumentFromFileTxt implements DocumentLoaderService{
                     "No se puede leer el fichero o directorio: " + filePath
             );
         }
-        List<Document> documents = loadDocumentsRecursively(
-                filePath,
-                new TextDocumentParser()
-        );
+        PathMatcher soloTxt = FileSystems.getDefault().getPathMatcher("glob:**.txt");
+        List<Document> documents = loadDocumentsRecursively(filePath, soloTxt, new TextDocumentParser());
         if (documents == null || documents.isEmpty()) {
             throw new IllegalStateException(
                     "No se pudo crear ningún documento a partir de: " + filePath
