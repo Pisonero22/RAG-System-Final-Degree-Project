@@ -30,6 +30,9 @@ public class ChatResource {
     @Inject
     Config config;
 
+
+
+
     @POST
     @Path("/ingest")
     @Produces(MediaType.TEXT_PLAIN)
@@ -62,7 +65,8 @@ public class ChatResource {
                                  @RestForm("fileName") String nombreArchivo) {
         try {
             java.nio.file.Path destino = fileUploadService.subirArchivo(archivo, nombreArchivo);
-            return Response.ok("Archivo guardado en: " + destino).build();
+            storage.ingestFile(destino);
+            return Response.ok("Archivo guardado e ingerido: " + destino.getFileName()).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
         } catch (IOException e) {

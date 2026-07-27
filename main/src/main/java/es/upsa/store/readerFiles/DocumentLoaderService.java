@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface DocumentLoaderService {
     List<Document> load(Path filePath) throws IOException;
+    List<Document> loadFile(Path file) throws IOException;
 }

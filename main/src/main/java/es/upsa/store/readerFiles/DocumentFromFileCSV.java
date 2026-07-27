@@ -43,6 +43,11 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
         return documents;
     }
 
+    @Override
+    public List<Document> loadFile(Path file) throws IOException {
+        return loadCsvFile(file);
+    }
+
     private List<Document> loadCsvFile(Path csvPath) throws IOException {
         CSVFormat format = CSVFormat.DEFAULT.builder()
                 .setHeader()

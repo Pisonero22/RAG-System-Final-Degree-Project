@@ -3,6 +3,7 @@ package es.upsa.store.readerFiles;
 import static dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocumentsRecursively;
 
 import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.document.loader.FileSystemDocumentLoader;
 import dev.langchain4j.data.document.parser.TextDocumentParser;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -42,5 +43,10 @@ public class DocumentFromFileTxt implements DocumentLoaderService{
             }
         }
         return documents;
+    }
+
+    @Override
+    public List<Document> loadFile(Path txtPath) throws IOException {
+        return List.of(FileSystemDocumentLoader.loadDocument(txtPath, new TextDocumentParser()));
     }
 }

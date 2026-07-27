@@ -123,6 +123,28 @@ public class IngestionRedisConfiguration implements StorageProvider {
         log.info("Reset completado: claves borradas y documentos reingestados (índice intacto).");
     }
 
+    @Override
+    public void ingestFile(Path file) throws IOException {
+        String nombre = file.getFileName().toString().toLowerCase();
+        boolean esCsv = nombre.endsWith(".csv");
+
+        List<Document> docs;
+        if (esCsv)                        docs = documentFromFileCSV.loadFile(file);
+        else if (nombre.endsWith(".pdf")) docs = documentFromFilePDF.loadFile(file);
+        else if (nombre.endsWith(".txt")) docs = documentFromFileTxt.loadFile(file);
+        else throw new IllegalArgumentException("Extensión no soportada: " + file);
+
+        // Esto preguntar si no lo podria cambiar a la forma que lo pongo yo o si hay alguna razon para ponerlo asi
+        var builder = EmbeddingStoreIngestor.builder()
+                .embeddingStore(embeddingStore)
+                .embeddingModel(embeddingModel);
+        if (!esCsv) {
+            builder.documentSplitter(recursive(512, 128));   // CSV: 1 fila = 1 embedding
+        }
+        builder.build().ingest(docs);
+
+        log.info("Ingesta incremental de '{}': {} documentos", file.getFileName(), docs.size());
+    }
 
 
 }

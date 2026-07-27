@@ -47,6 +47,11 @@ public class DocumentFromFilePDF implements DocumentLoaderService {
         return docs;
     }
 
+    @Override
+    public List<Document> loadFile(Path file) throws IOException {
+        return loadPdf(file);
+    }
+
     private List<Document> loadPdf(Path pdfPath) throws IOException {
         List<Document> segments = new ArrayList<>();
         // Sin el prefijo UUID de la subida: "a8a7c73a-..._PlayStation_5.pdf" -> "PlayStation_5.pdf"
