@@ -19,3 +19,8 @@ target/
 .DS_Store
 # Datos de Redis (bind mount del docker-compose): se regeneran con /service/ingest
 redis-data/
+
+
+# Archivos subidos en caliente por /service/upload: no forman parte del corpus
+# de ejemplo del proyecto y se regeneran subiéndolos otra vez.
+main/data/rag/**/uploads/

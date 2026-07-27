@@ -44,11 +44,13 @@ public class FileUploadService {
             throw new IllegalArgumentException("Extensión no válida");
         }
 
-        Path carpetaBase = dirDestino.toAbsolutePath().normalize();
+        Path carpetaBase = dirDestino.resolve("uploads").toAbsolutePath().normalize();
         Files.createDirectories(carpetaBase);
 
         String nombreSeguro = sanitizeFileName(nombreArchivo);
         Path destino = carpetaBase.resolve(UUID.randomUUID() + "_" + nombreSeguro).normalize();
+
+
 
         if (!destino.startsWith(carpetaBase)) {
             throw new IllegalArgumentException("Ruta de destino no válida");
