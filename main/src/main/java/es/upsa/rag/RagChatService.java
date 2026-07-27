@@ -9,7 +9,6 @@ import dev.langchain4j.data.message.UserMessage;
 
 import es.upsa.ragconfiguration.RagRetriever;
 import es.upsa.store.RagChatMemoryStore;
-import io.quarkiverse.langchain4j.runtime.aiservice.GuardrailException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.Config;

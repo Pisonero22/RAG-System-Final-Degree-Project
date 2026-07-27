@@ -173,6 +173,12 @@
         $("#msg").keypress(e => { if (e.which === 13) send(); });
 
         cargarModelos();
+        // al enviar
+        $("#send").prop("disabled", true);
+        appendSystemMessage("Generando respuesta…");
+        // en onmessage, al recibir un CHAT_MESSAGE del asistente
+        $("#send").prop("disabled", false);
+
 
         $("#ingest").click(() => {
             $.ajax({
@@ -243,6 +249,7 @@
         });
 
     });
+
     // Rellena el desplegable con los modelos REALES que expone el backend
     // (GET /service/models). Si la llamada falla, opciones estáticas de
     // emergencia para no dejar la interfaz inutilizable.
@@ -275,55 +282,67 @@
     }
 
     function connect() {
-        if (!connected) {
-            username = $("#name").val();
-            // wss:// si la página se sirve por HTTPS (si no, el navegador
-            // bloquearía el socket por contenido mixto).
-            const wsProto = location.protocol === "https:" ? "wss://" : "ws://";
-            socket = new WebSocket(wsProto + location.host + "/chat/" + username);
+        if(connected) return;
 
-            socket.onopen = () => {
-                connected = true;
-                $("#send").prop("disabled", false);
-                $("#connect").prop("disabled", true);
-                $("#name").prop("disabled", true);
-                $("#msg").focus();
-            };
+        username = $("#name").val().trim();
 
-            socket.onmessage = m => {
-                const chatMessage = JSON.parse(m.data);
-                switch (chatMessage.type) {
-                    case "USER_JOINED":
-                        appendSystemMessage(`${chatMessage.from} se unió al chat.`);
-                        break;
-                    case "USER_LEFT":
-                        appendSystemMessage(`${chatMessage.from} salió del chat.`);
-                        break;
-                    case "CHAT_MESSAGE":
-                        appendUserMessage(chatMessage.from, chatMessage.message, chatMessage.from === chatMessage.llm);
-                        break;
-                }
-            };
-
-
+        if (!username) {
+            appendSystemMessage("Escribe un nombre antes de conectar.");
+            return;
         }
+
+        // wss:// si la página se sirve por HTTPS (si no, el navegador
+        // bloquearía el socket por contenido mixto).
+        const wsProto = location.protocol === "https:" ? "wss://" : "ws://";
+        socket = new WebSocket(wsProto + location.host + "/chat/" + encodeURIComponent(username));
+
+        socket.onopen = () => {
+            connected = true;
+            $("#send").prop("disabled", false);
+            $("#connect").prop("disabled", true);
+            $("#name").prop("disabled", true);
+            $("#msg").focus();
+        };
+
+        socket.onmessage = m => {
+            const chatMessage = JSON.parse(m.data);
+            switch (chatMessage.type) {
+                case "USER_JOINED":
+                    appendSystemMessage(`Conectado como ${chatMessage.from}`);
+                    break;
+                case "CHAT_MESSAGE":
+                    appendUserMessage(chatMessage.from, chatMessage.message, chatMessage.from === chatMessage.llm);
+                    break;
+            }
+        };
+
+        socket.onerror = () => appendSystemMessage("Error de conexión con el servidor.");
+
+        // Se dispara también si el servidor se reinicia: sin esto, la interfaz se
+        // queda "conectada" y los mensajes se pierden en silencio.
+        socket.onclose = () => {
+            connected = false;
+            $("#send").prop("disabled", true);
+            $("#connect").prop("disabled", false);
+            $("#name").prop("disabled", false);
+            appendSystemMessage("Conexión cerrada. Pulsa Conectar para volver a entrar.");
+        };
+
     }
 
     function send() {
-        if (connected) {
-            const msg = $("#msg").val();
-            const llm = $("#llm-select").val(); // Nuevo
-
-            const chatMessage = {
-                type: "CHAT_MESSAGE",
-                from: username,
-                message: msg,
-                llm: llm
-            };
-
-            socket.send(JSON.stringify(chatMessage));
-            $("#msg").val("");
+        if (!connected || !socket || socket.readyState !== WebSocket.OPEN) {
+            appendSystemMessage("No estás conectado.");
+            return;
         }
+        const msg = $("#msg").val().trim();
+
+        if (!msg) return;                       // no mandes vacíos: el servidor los descarta
+        socket.send(JSON.stringify({ type: "CHAT_MESSAGE", from: username, message: msg,
+            llm: $("#llm-select").val() }));
+
+        $("#msg").val("");
+
     }
 
 
