@@ -66,6 +66,8 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
              CSVParser parser = new CSVParser(reader, format)) {
             int rowNum = 1;
             for (CSVRecord record : parser) {
+                try{
+
                 // Metadatos mínimos: fichero y fila. Las columnas van solo en el TEXTO.
                 Map<String, Object> map = new LinkedHashMap<>();
                 map.put("nombre", nombreLimpio);
@@ -79,6 +81,10 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
 
                 Metadata meta = Metadata.from(map);
                 documents.add(Document.from(text.toString(), meta));
+                }catch (Exception e) {
+                    log.warn("CSV '{}', fila {}: registro ilegible, se omite ({})", nombreLimpio, rowNum, e.toString());
+                }
+                rowNum++;
             }
         }
         if (documents.isEmpty()) {

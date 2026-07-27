@@ -118,4 +118,14 @@ public class ChatResource {
                         "quarkus.langchain4j.ollama." + slot + ".chat-model.model-id", String.class)
                 .orElse("desconocido");
     }
+
+    @POST
+    @Path("/clean-uploads")
+    @Produces(MediaType.TEXT_PLAIN)
+    @AdminEndpoint
+    public Response limpiarSubidas() throws IOException {
+        int borrados = fileUploadService.borrarSubidas();   // vacía los tres uploads/
+        storage.resetEmbeddingStore();                      // reconstruye desde el corpus versionado
+        return Response.ok("Subidas eliminadas: " + borrados + ". Índice reconstruido desde el corpus base.").build();
+    }
 }
