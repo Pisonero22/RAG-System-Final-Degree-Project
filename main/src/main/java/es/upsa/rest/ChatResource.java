@@ -14,6 +14,7 @@ import org.jboss.resteasy.reactive.RestForm;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -30,6 +31,7 @@ public class ChatResource {
     @Inject
     Config config;
 
+    long t0 = System.nanoTime();
 
 
 
@@ -62,16 +64,30 @@ public class ChatResource {
     @Produces(MediaType.TEXT_PLAIN)
     @AdminEndpoint
     public Response subirArchivo(@RestForm("file") InputStream archivo,
-                                 @RestForm("fileName") String nombreArchivo) {
+                                 @RestForm("fileName") String nombreArchivo) throws IOException {
+
+
+        java.nio.file.Path destino;
         try {
-            java.nio.file.Path destino = fileUploadService.subirArchivo(archivo, nombreArchivo);
-            storage.ingestFile(destino);
-            return Response.ok("Archivo guardado e ingerido: " + destino.getFileName()).build();
+            destino = fileUploadService.subirArchivo(archivo, nombreArchivo);
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
         } catch (IOException e) {
-            return Response.serverError().entity("Error al guardar: " + e.getMessage()).build();
+            return Response.serverError().entity("Error al guardar el archivo: " + e.getMessage()).build();
         }
+
+        try {
+            storage.ingestFile(destino);
+        } catch (Exception e) {
+            // El archivo YA está en disco: si no se puede ingestar, se retira para que
+            // no ensucie las ingestas completas posteriores.
+            Files.deleteIfExists(destino);
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("El archivo no se ha podido procesar y se ha descartado: " + e.getMessage())
+                    .build();
+        }
+        return Response.ok("Archivo guardado e ingerido: " + destino.getFileName()).build();
+
     }
 
     /**

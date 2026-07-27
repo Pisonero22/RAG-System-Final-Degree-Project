@@ -33,7 +33,7 @@ public class DocumentFromFilePDF implements DocumentLoaderService {
     @Override
     public List<Document> load(Path folder) throws IOException {
         if (!Files.isDirectory(folder)) {
-            log.warn("El directorio '{}' no existe; no hay CSVs que cargar.", folder);
+            log.warn("El directorio '{}' no existe; no hay PDFs que cargar.", folder);
             return List.of();
         }
         List<Document> docs = new ArrayList<>();

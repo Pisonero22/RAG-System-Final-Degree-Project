@@ -152,6 +152,8 @@ public class IngestionRedisConfiguration implements StorageProvider {
     @Override
     public void resetEmbeddingStore() throws IOException {
         Corpus corpus = cargarCorpus();          // 1) cargar y validar
+        long t0 = System.nanoTime();
+
         if (corpus.vacio()) {
             log.warn("Reset CANCELADO: no se ha podido cargar ningún documento. "
                     + "El índice actual se mantiene intacto.");
@@ -159,7 +161,9 @@ public class IngestionRedisConfiguration implements StorageProvider {
         }
         clearIngestionCache();
         indexar(corpus);
-        log.info("Reset completado: {} documentos reindexados (índice intacto).", corpus.total());
+
+        log.info("Reset completado: {} documentos reindexados en {} ms", corpus.total(),(System.nanoTime() - t0) / 1_000_000);
+
     }
 
     @Override

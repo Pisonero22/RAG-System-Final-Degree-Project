@@ -173,12 +173,6 @@
         $("#msg").keypress(e => { if (e.which === 13) send(); });
 
         cargarModelos();
-        // al enviar
-        $("#send").prop("disabled", true);
-        appendSystemMessage("Generando respuesta…");
-        // en onmessage, al recibir un CHAT_MESSAGE del asistente
-        $("#send").prop("disabled", false);
-
 
         $("#ingest").click(() => {
             $.ajax({
@@ -311,7 +305,11 @@
                     appendSystemMessage(`Conectado como ${chatMessage.from}`);
                     break;
                 case "CHAT_MESSAGE":
-                    appendUserMessage(chatMessage.from, chatMessage.message, chatMessage.from === chatMessage.llm);
+                    const esRespuestaIA = chatMessage.from === chatMessage.llm;
+                    appendUserMessage(chatMessage.from, chatMessage.message, esRespuestaIA);
+                    if (esRespuestaIA) {
+                        $("#send").prop("disabled", false);   // ya puedes preguntar otra vez
+                    }
                     break;
             }
         };
@@ -336,12 +334,17 @@
             return;
         }
         const msg = $("#msg").val().trim();
-
         if (!msg) return;                       // no mandes vacíos: el servidor los descarta
+
         socket.send(JSON.stringify({ type: "CHAT_MESSAGE", from: username, message: msg,
             llm: $("#llm-select").val() }));
 
         $("#msg").val("");
+        // al enviar
+        $("#send").prop("disabled", true);
+        appendSystemMessage("Generando respuesta…");
+        // en onmessage, al recibir un CHAT_MESSAGE del asistente
+
 
     }
 
