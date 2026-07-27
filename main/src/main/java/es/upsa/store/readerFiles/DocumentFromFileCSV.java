@@ -23,12 +23,13 @@ import java.util.stream.Stream;
 @ApplicationScoped
 public class DocumentFromFileCSV implements DocumentLoaderService {
 
-    private static final Logger log = LoggerFactory.getLogger(DocumentFromFilePDF.class);
+    private static final Logger log = LoggerFactory.getLogger(DocumentFromFileCSV.class);
 
     @Override
     public List<Document> load(Path folder) throws IOException {
         if (!Files.isDirectory(folder)) {
-            throw new IllegalArgumentException("La ruta debe ser un directorio: " + folder);
+            log.warn("El directorio '{}' no existe; no hay CSVs que cargar.", folder);
+            return List.of();
         }
         List<Document> documents = new ArrayList<>();
         try (Stream<Path> files = Files.walk(folder)) {
@@ -38,7 +39,7 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
                         try {
                             documents.addAll(loadCsvFile(p));
                         } catch (Exception e) {
-                            log.warn("PDF '{}' ilegible; se OMITE de la ingesta: {}",
+                            log.warn("CSV '{}' ilegible; se OMITE de la ingesta: {}",
                                     p.getFileName(), e.toString());
                         }
                     });
@@ -81,7 +82,7 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
             }
         }
         if (documents.isEmpty()) {
-            log.warn("CSV vacio");
+            log.warn("CSV '{}' sin filas de datos; se omite.", nombreLimpio);
             return List.of();
         }
         return documents;

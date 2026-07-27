@@ -33,7 +33,8 @@ public class DocumentFromFilePDF implements DocumentLoaderService {
     @Override
     public List<Document> load(Path folder) throws IOException {
         if (!Files.isDirectory(folder)) {
-            throw new IllegalArgumentException("La ruta debe ser un directorio: " + folder);
+            log.warn("El directorio '{}' no existe; no hay CSVs que cargar.", folder);
+            return List.of();
         }
         List<Document> docs = new ArrayList<>();
         try (Stream<Path> paths = Files.walk(folder)) {
