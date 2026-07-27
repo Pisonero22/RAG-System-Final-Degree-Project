@@ -86,6 +86,8 @@ public class ChatResource {
         modelos.put("gpt", config.getOptionalValue(
                         "quarkus.langchain4j.openai.gpt.chat-model.model-name", String.class)
                 .orElse("desconocido"));
+        modelos.put("qwen", modeloOllama("qwen"));
+        modelos.put("gpto", modeloOllama("gpto"));
         modelos.put("deepseek", modeloOllama("deepseek"));
         modelos.put("mistral", modeloOllama("mistral"));
         return modelos;

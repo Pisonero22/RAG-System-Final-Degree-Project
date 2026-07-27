@@ -34,8 +34,10 @@ public class RagChatService {
     QueryRewriteService queryRewriter;
     @Inject
     RagChatMemoryStore memoryStore;
+
     @ConfigProperty(name = "rag.query-rewrite.enabled", defaultValue = "true")
     boolean rewriteEnabled;
+
 
     public String chat(String username, String message, String modelProvider){
         // Defensa en profundidad: el WebSocket ya filtra vacíos, pero este servicio
@@ -89,6 +91,8 @@ public class RagChatService {
             case "openai", "gpt" -> "gpt";
             case "deepseek"      -> "deepseek";
             case "mistral"       -> "mistral";
+            case "qwen"          -> "qwen";
+            case "gpto"          -> "gpto";
             default              -> "llama";
         };
     }

@@ -31,17 +31,24 @@ public interface QueryRewriteService {
         a lo que se refieren.
 
         Reglas:
-        - Si el mensaje ya se entiende por sí solo, devuélvelo EXACTAMENTE igual.
-        - No añadas información que no esté en la conversación.
-        - No respondas a la pregunta.
+        - SEGUIMIENTO CORTO: si el mensaje tiene menos de cinco palabras o empieza por "y",
+          es casi seguro un seguimiento. Identifica el SUJETO principal del último
+          intercambio (el producto, documento o entidad del que se estaba hablando) y
+          escríbelo explícitamente en la consulta.
+        - TEMA NUEVO: si el mensaje pregunta por algo que NO se ha mencionado antes,
+          devuélvelo EXACTAMENTE igual. Nunca lo relaciones con el tema anterior.
+        - YA AUTOCONTENIDO: si el mensaje se entiende por sí solo, devuélvelo igual.
+        - NUNCA lo acortes a palabras sueltas: escribe una frase completa.
+        - Conserva TODOS los matices (marca, variante, formato, "normal", "premium").
+        - No añadas información que no esté en la conversación. No respondas a la pregunta.
         - Devuelve SOLO la consulta, en una línea, sin comillas ni explicaciones.
 
-        Ejemplos (el patrón vale para cualquier atributo: precio, stock, fecha, autor...):
+        Ejemplos:
         (hablando de la PlayStation 5) "¿y cuánto cuesta?" -> precio de la PlayStation 5
-        (hablando de un dron DJI) "¿y cuánto stock hay?" -> stock disponible del dron DJI
-        (hablando del accidente de la discoteca) "¿cuántos fallecidos hubo?" -> fallecidos en el accidente de la discoteca
-        (el asistente mencionó la PS5 y un dron DJI) "háblame del segundo" -> dron DJI
-        "¿Qué juegos exclusivos tiene la PS5?" -> ¿Qué juegos exclusivos tiene la PS5?
+        (hablando del yogur natural) "¿y el formato ahorro?" -> precio del yogur natural formato ahorro
+        (hablando de la leche entera premium) "¿y la normal?" -> precio de la leche entera normal, no premium
+        (hablando de un torneo de ajedrez) "¿Cómo se llama el buque de investigación?" -> ¿Cómo se llama el buque de investigación?
+        "¿Dónde se ha celebrado el torneo de ajedrez?" -> ¿Dónde se ha celebrado el torneo de ajedrez?
         """)
     String reescribir(String historial, String mensaje);
 }

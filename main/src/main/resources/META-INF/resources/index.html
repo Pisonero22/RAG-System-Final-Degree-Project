@@ -131,10 +131,10 @@
             <button id="send" class="btn btn-primary btn-block" disabled>Enviar</button>
         </div>
         <div class="col-md-2">
-            <button id="ingest" class="btn btn-warning btn-block" disabled>Ingestar Datos</button>
+            <button id="ingest" class="btn btn-warning btn-block">Ingestar Datos</button>
         </div>
         <div class="col-md-2">
-            <button id="reset" class="btn btn-danger btn-block" disabled>Reset Storage</button>
+            <button id="reset" class="btn btn-danger btn-block">Reset Storage</button>
         </div>
     </div>
     <div class="row form-group" style="margin-top: 10px;">
@@ -161,6 +161,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.24.0/js/patternfly.min.js"></script>
 
 <script>
+
     let connected = false;
     let socket;
     let username = "";
@@ -171,12 +172,8 @@
         $("#name").keypress(e => { if (e.which === 13) connect(); });
         $("#msg").keypress(e => { if (e.which === 13) send(); });
 
-        const ADMIN_KEY = prompt("Introduce la clave de administrador para esta sesión:") || "";
 
         $("#ingest").click(() => {
-            const llm = $("#llm-select").val();
-            if (!llm) { appendSystemMessage("Selecciona un modelo antes de ingestar."); return; }
-
             $.ajax({
                 url: "/service/ingest",
                 type: "POST",
@@ -188,12 +185,6 @@
         });
 
         $("#reset").click(() => {
-            const llm = $("#llm-select").val();
-            if (!llm) {
-                appendSystemMessage("Selecciona un modelo antes de resetear.");
-                return;
-            }
-
             $.ajax({
                 url: "/service/reset",
                 type: "POST",
@@ -211,14 +202,9 @@
 
 
         $("#connect").prop("disabled", true);
-        $("#ingest").prop("disabled", true);
-        $("#reset").prop("disabled", true);
 
         $("#llm-select").on("change", function () {
-            const hasLLM = $(this).val() !== "";
-            $("#connect").prop("disabled", !hasLLM);
-            $("#ingest").prop("disabled", !hasLLM);
-            $("#reset").prop("disabled", !hasLLM);
+            $("#connect").prop("disabled", $(this).val() === "");
         });
 
         $("#file-upload").on("change", function () {
@@ -227,17 +213,11 @@
 
         $("#upload").click(function () {
             const file = $("#file-upload")[0].files[0];
-            const llm = $("#llm-select").val();
 
             if (!file) {
                 appendSystemMessage("Selecciona un archivo para subir.");
                 return;
             }
-            if (!llm) {
-                appendSystemMessage("Selecciona un modelo antes de subir el archivo.");
-                return;
-            }
-
             const formData = new FormData();
             formData.append("file", file);
             formData.append("fileName", file.name);
@@ -269,16 +249,17 @@
         const sel = $("#llm-select");
         $.getJSON("/service/models")
             .done(modelos => {
-                ["llama", "gpt", "deepseek", "mistral"].forEach(slot => {
-                    if (modelos[slot]) {
-                        sel.append(`<option value="${slot}">${slot} → ${escapeHtml(modelos[slot])}</option>`);
-                    }
+                Object.entries(modelos).forEach(([slot, modelo]) => {
+                    sel.append(`<option value="${slot}">${slot} → ${escapeHtml(modelo)}</option>`);
                 });
             })
             .fail(() => {
+
                 sel.append('<option value="llama">llama (Ollama local)</option>');
                 sel.append('<option value="gpt">gpt (OpenAI)</option>');
                 sel.append('<option value="deepseek">deepseek (Ollama local)</option>');
+                sel.append('<option value="qwen">qwen (Ollama local)</option>');
+                sel.append('<option value="gpto">gpto (Ollama local)</option>');
                 sel.append('<option value="mistral">mistral (Ollama local)</option>');
             });
     }
