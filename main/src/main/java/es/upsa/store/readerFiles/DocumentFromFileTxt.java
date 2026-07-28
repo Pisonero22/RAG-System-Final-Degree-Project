@@ -26,7 +26,7 @@ public class DocumentFromFileTxt implements DocumentLoaderService{
 
         if (!file.exists()) {
             log.warn("El directorio '{}' no existe; no hay TXTs que cargar.", filePath);
-
+            return List.of();
         }
         if (!file.canRead()) {
             throw new IllegalStateException(

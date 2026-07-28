@@ -31,22 +31,6 @@ public class ChatResource {
     @Inject
     Config config;
 
-    long t0 = System.nanoTime();
-
-
-
-    @POST
-    @Path("/ingest")
-    @Produces(MediaType.TEXT_PLAIN)
-    @AdminEndpoint
-    public Response getIngestResponse() throws IOException {
-
-        storage.resetEmbeddingStore();
-        return Response.ok()
-                .entity("Ingesta completada: almacén limpiado y documentos reingestados")
-                .build();
-    }
-
     @POST
     @Path("/reset")
     @Produces(MediaType.TEXT_PLAIN)

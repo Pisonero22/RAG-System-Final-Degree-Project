@@ -136,6 +136,9 @@
         <div class="col-md-2">
             <button id="reset" class="btn btn-danger btn-block">Reset Storage</button>
         </div>
+        <div class="col-md-2">
+            <button id="clean-uploads" class="btn btn-default btn-block">Limpiar subidas</button>
+        </div>
     </div>
     <div class="row form-group" style="margin-top: 10px;">
         <div class="col-md-12 text-right">
@@ -174,33 +177,41 @@
 
         cargarModelos();
 
-        $("#ingest").click(() => {
-            $.ajax({
-                url: "/service/ingest",
-                type: "POST",
-                dataType: "text",
-                headers: { "X-API-KEY": getAdminKey() },
-                success: data => appendSystemMessage("Ingestión completada: " + data),
-                error: (xhr, status, error) => appendSystemMessage("Error en la ingesta: " + error)
-            });
-        });
-
         $("#reset").click(() => {
+
+            const $btn = $("#clean-uploads").prop("disabled", true);
+            appendSystemMessage("Limpiando subidas y reconstruyendo el índice…");
+
             $.ajax({
                 url: "/service/reset",
                 type: "POST",
                 headers: { "X-API-KEY": getAdminKey() },
                 dataType: "text",
-                success: data => {
+            success: data => {
+                    $btn.prop("disabled", false);
                     setTimeout(() => location.reload(), 250);
                     appendSystemMessage("Reset completado: " + data);
                 },
                 error: (xhr, status, error) => {
+                    $btn.prop("disabled", false);
                     appendSystemMessage("Error en el reset: " + error);
                 }
             });
         });
 
+        $("#clean-uploads").click(() => {
+            if (!confirm("Se borrarán todos los archivos subidos y se reconstruirá el índice con el corpus base. ¿Continuar?")) {
+                return;
+            }
+            $.ajax({
+                url: "/service/clean-uploads",
+                type: "POST",
+                dataType: "text",
+                headers: { "X-API-KEY": getAdminKey() },
+                success: data => appendSystemMessage(data),
+                error: (xhr, status, error) => appendSystemMessage("Error al limpiar subidas: " + error)
+            });
+        });
 
         $("#connect").prop("disabled", true);
 
@@ -306,16 +317,22 @@
                     break;
                 case "CHAT_MESSAGE":
                     const esRespuestaIA = chatMessage.from === chatMessage.llm;
+                    if (esRespuestaIA) {
+                        quitarGenerando()
+                    }
                     appendUserMessage(chatMessage.from, chatMessage.message, esRespuestaIA);
                     if (esRespuestaIA) {
-                        $("#send").prop("disabled", false);   // ya puedes preguntar otra vez
+                        $("#send").prop("disabled", false);
                     }
                     break;
             }
         };
 
-        socket.onerror = () => appendSystemMessage("Error de conexión con el servidor.");
 
+        socket.onerror = () => {
+            quitarGenerando();
+            appendSystemMessage("Error de conexión con el servidor.");
+        };
         // Se dispara también si el servidor se reinicia: sin esto, la interfaz se
         // queda "conectada" y los mensajes se pierden en silencio.
         socket.onclose = () => {
@@ -323,6 +340,7 @@
             $("#send").prop("disabled", true);
             $("#connect").prop("disabled", false);
             $("#name").prop("disabled", false);
+            quitarGenerando();
             appendSystemMessage("Conexión cerrada. Pulsa Conectar para volver a entrar.");
         };
 
@@ -342,11 +360,12 @@
         $("#msg").val("");
         // al enviar
         $("#send").prop("disabled", true);
-        appendSystemMessage("Generando respuesta…");
+        mostrarGenerando();
         // en onmessage, al recibir un CHAT_MESSAGE del asistente
 
 
     }
+
 
 
     function escapeHtml(str) {
@@ -371,6 +390,18 @@
         const chat = $('#chat');
         chat.scrollTop(chat[0].scrollHeight);
     }
+
+    // Indicador temporal: se le pone id para poder retirarlo cuando llegue la respuesta.
+    function mostrarGenerando() {
+        quitarGenerando();                 // nunca dos a la vez
+        $("#chat").append('<div id="generando" class="system-message">Generando respuesta…</div>');
+        scrollToBottom();
+    }
+
+    function quitarGenerando() {
+        $("#generando").remove();          // si no existe, no hace nada
+    }
+
 </script>
 
 </body>

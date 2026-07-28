@@ -71,8 +71,6 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
                 // Metadatos mínimos: fichero y fila. Las columnas van solo en el TEXTO.
                 Map<String, Object> map = new LinkedHashMap<>();
                 map.put("nombre", nombreLimpio);
-                map.put("fila", rowNum++);
-
                 StringBuilder text = new StringBuilder();
                 for (String header : parser.getHeaderNames()) {
                     String value = record.get(header);
