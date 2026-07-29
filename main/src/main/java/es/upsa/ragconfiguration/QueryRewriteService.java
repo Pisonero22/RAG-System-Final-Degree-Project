@@ -42,6 +42,9 @@ public interface QueryRewriteService {
         - Conserva TODOS los matices (marca, variante, formato, "normal", "premium").
         - No añadas información que no esté en la conversación. No respondas a la pregunta.
         - Devuelve SOLO la consulta, en una línea, sin comillas ni explicaciones.
+        - AFIRMACIÓN: si el mensaje no es una pregunta sino un dato que el usuario
+          cuenta sobre sí mismo ("me llamo...", "vivo en...", "estudio..."),
+          devuélvelo EXACTAMENTE igual. No lo conviertas en pregunta.
 
         Ejemplos:
         (hablando de la PlayStation 5) "¿y cuánto cuesta?" -> precio de la PlayStation 5
