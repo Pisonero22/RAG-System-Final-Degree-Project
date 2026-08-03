@@ -5,6 +5,7 @@ import static dev.langchain4j.data.document.loader.FileSystemDocumentLoader.load
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.loader.FileSystemDocumentLoader;
 import dev.langchain4j.data.document.parser.TextDocumentParser;
+import es.upsa.busqueda.Fuentes;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,12 +44,15 @@ public class DocumentFromFileTxt implements DocumentLoaderService{
         // Documento en blanco: se omite, no se aborta el lote.
         return documents.stream()
                 .filter(d -> d.text() != null && !d.text().isBlank())
+                .map(d -> Document.from(Fuentes.separarSaltos(d.text()), d.metadata()))
                 .toList();
 
     }
 
     @Override
     public List<Document> loadFile(Path txtPath) throws IOException {
-        return List.of(FileSystemDocumentLoader.loadDocument(txtPath, new TextDocumentParser()));
+        Document doc = FileSystemDocumentLoader.loadDocument(txtPath, new TextDocumentParser());
+        return List.of(Document.from(Fuentes.separarSaltos(doc.text()), doc.metadata()));
+
     }
 }

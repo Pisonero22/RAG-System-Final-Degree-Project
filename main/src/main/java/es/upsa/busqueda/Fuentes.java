@@ -26,7 +26,9 @@ public final class Fuentes {
             return limpiarNombre(metadatos.get("file_name"));
         }
         if (metadatos.containsKey("nombre")) {                     // CSV
-            return limpiarNombre(metadatos.get("nombre"));         // ya incluye "(fila N)"
+            Object fila = metadatos.get("fila");
+            return limpiarNombre(metadatos.get("nombre"))
+                    + (fila == null ? "" : " (fila " + numero(fila) + ")");
         }
         return "fuente desconocida";
     }

@@ -37,7 +37,18 @@ public class FusionRRF {
      *  devolver nada. */
     @ConfigProperty(name = "rag.fusion.peso-denso", defaultValue = "1.0")
     double pesoDenso;
-    @ConfigProperty(name = "rag.fusion.peso-lexico", defaultValue = "0.7")
+    /**
+     * Ambas ramas pesan igual. Se probó un peso léxico menor (0,7), pensando en
+     * las coincidencias casuales de las preguntas conversacionales, y resultó
+     * anular la rama léxica por completo: con k=60, 0,7/61 es menor que 1,0/70,
+     * de modo que el PEOR resultado denso superaba al MEJOR resultado léxico y
+     * ningún fragmento léxico llegaba nunca a los tres finales.
+     *
+     * El ruido conversacional se resolvió donde corresponde —en la consulta, con
+     * semántica conjuntiva y filtro de palabras vacías— y no penalizando la rama
+     * entera.
+     */
+    @ConfigProperty(name = "rag.fusion.peso-lexico", defaultValue = "1.0")
     double pesoLexico;
 
     /** Un fragmento fusionado: con su origen ("D", "L" o "D+L") y su puntuación. */

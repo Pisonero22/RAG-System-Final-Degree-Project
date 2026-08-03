@@ -41,11 +41,12 @@ public class BusquedaDensa {
 
     /**
      * Calibrado con logs reales (score = (1+coseno)/2 con bge-m3): los relevantes
-     * claros están en 0,79-0,86 y la zona gris en 0,72-0,78, donde se mezclan
-     * relevantes e irrelevantes. El umbral es una red de seguridad; la zona gris
-     * la resuelven las reglas del system prompt y el propio modelo.
+     * claros están en 0,79-0,86 y la zona gris en 0,72-0,78. Se fijó en 0,75
+     * porque a 0,72 saludos como "Hola" recuperaban cinco fragmentos de ruido
+     * (patentes, Plutón, perímetros de seguridad) mientras que ninguna pregunta
+     * real perdía fragmentos: los aciertos entraban con 6, 4 y 3 candidatos.
      */
-    @ConfigProperty(name = "rag.retriever.min-score", defaultValue = "0.72")
+    @ConfigProperty(name = "rag.retriever.min-score", defaultValue = "0.75")
     double minScore;
 
     private EmbeddingStoreContentRetriever retriever;

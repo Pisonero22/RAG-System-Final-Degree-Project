@@ -86,7 +86,7 @@ public class DocumentFromFilePDF implements DocumentLoaderService {
         for (int i = 0; i < textos.size(); i++) {
             String puente = (i == 0) ? "" : cola(textos.get(i - 1), PUENTE_CHARS);
             String contenido = puente.isEmpty() ? textos.get(i)
-                    : puente + "\n" + textos.get(i);
+                    : puente + " \n" + textos.get(i);
 
             Map<String, Object> meta = new LinkedHashMap<>();
             meta.put("file", nombreLimpio);

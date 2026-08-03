@@ -81,7 +81,7 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
                         // término ("precio_base_eur") y palabras como "precio" o "producto" se
                         // vuelven imposibles de encontrar con la búsqueda léxica. Se sustituyen
                         // por espacios, que además mejora ligeramente el embedding.
-                        text.append(header.replace('_', ' ')).append(": ").append(value).append("\n");
+                        text.append(header.replace('_', ' ')).append(": ").append(value).append(" \n ");
                     }
 
                 Metadata meta = Metadata.from(map);

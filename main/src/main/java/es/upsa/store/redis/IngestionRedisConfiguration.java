@@ -3,8 +3,10 @@ package es.upsa.store.redis;
 import static dev.langchain4j.data.document.splitter.DocumentSplitters.recursive;
 
 import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
+import es.upsa.busqueda.Fuentes;
 import es.upsa.providers.storages.RedisStorage;
 import es.upsa.store.StorageProvider;
 import es.upsa.store.readerFiles.DocumentFromFileCSV;
@@ -79,28 +81,8 @@ public class IngestionRedisConfiguration implements StorageProvider {
 
 
     @Override
-    public void ingest () throws IOException {
-
-        // CSV: cada fila ya es un documento autocontenido -> SIN splitter
-        List<Document> csvDocs = documentFromFileCSV.load(csvFiles);
-        EmbeddingStoreIngestor.builder()
-                .embeddingStore(embeddingStore)
-                .embeddingModel(embeddingModel)
-                .build()                                  // sin documentSplitter: 1 fila = 1 embedding
-                .ingest(csvDocs);
-
-        // TXT y PDF: prosa -> chunks más grandes con solape
-        List<Document> textDocs = new ArrayList<>();
-        textDocs.addAll(documentFromFileTxt.load(txtFile));
-        textDocs.addAll(documentFromFilePDF.load(pdfFiles));
-        EmbeddingStoreIngestor.builder()
-                .embeddingStore(embeddingStore)
-                .embeddingModel(embeddingModel)
-                .documentSplitter(recursive(512, 128))
-                .build()
-                .ingest(textDocs);
-
-        log.info("Ingesta: {} filas CSV + {} docs de texto/PDF", csvDocs.size(), textDocs.size());
+    public void ingest() throws IOException {
+        indexar(cargarCorpus());
     }
 
     private Corpus cargarCorpus() throws IOException {
@@ -112,24 +94,32 @@ public class IngestionRedisConfiguration implements StorageProvider {
     }
 
     private void indexar(Corpus corpus) {
-        // CSV: cada fila ya es un documento autocontenido -> SIN splitter
+        // CSV: cada fila ya es un documento autocontenido -> SIN segmentador
         if (!corpus.filas().isEmpty()) {
-            EmbeddingStoreIngestor.builder()
-                    .embeddingStore(embeddingStore)
-                    .embeddingModel(embeddingModel)
-                    .build()
-                    .ingest(corpus.filas());
+            ingestor().build().ingest(corpus.filas());
         }
-        // TXT y PDF: prosa -> chunks con solape
+        // TXT y PDF: prosa -> fragmentos con solape
         if (!corpus.prosa().isEmpty()) {
-            EmbeddingStoreIngestor.builder()
-                    .embeddingStore(embeddingStore)
-                    .embeddingModel(embeddingModel)
-                    .documentSplitter(recursive(512, 128))
-                    .build()
-                    .ingest(corpus.prosa());
+            ingestor().documentSplitter(recursive(512, 128)).build().ingest(corpus.prosa());
         }
         log.info("Ingesta: {} filas CSV + {} docs de texto/PDF", corpus.filas().size(), corpus.prosa().size());
+    }
+    /**
+     * Ingestor común a los tres caminos.
+     *
+     * El transformador de segmentos aplica la separación de saltos DESPUÉS del
+     * segmentador, que es el único punto en el que el texto ya no va a cambiar:
+     * el segmentador recursivo parte por párrafos y líneas y vuelve a unir los
+     * trozos con su propio separador, de modo que cualquier limpieza hecha en el
+     * loader queda deshecha para los documentos de prosa. Los CSV no lo notaban
+     * porque se ingestan sin segmentador, y ese contraste es el que localizó el
+     * problema.
+     */
+    private EmbeddingStoreIngestor.Builder ingestor() {
+        return EmbeddingStoreIngestor.builder()
+                .embeddingStore(embeddingStore)
+                .embeddingModel(embeddingModel)
+                .textSegmentTransformer(s -> TextSegment.from(Fuentes.separarSaltos(s.text()), s.metadata()));
     }
 
     /**
@@ -178,9 +168,7 @@ public class IngestionRedisConfiguration implements StorageProvider {
         else throw new IllegalArgumentException("Extensión no soportada: " + file);
 
         // Esto preguntar si no lo podria cambiar a la forma que lo pongo yo o si hay alguna razon para ponerlo asi
-        var builder = EmbeddingStoreIngestor.builder()
-                .embeddingStore(embeddingStore)
-                .embeddingModel(embeddingModel);
+        var builder = ingestor();
         if (!esCsv) {
             builder.documentSplitter(recursive(512, 128));   // CSV: 1 fila = 1 embedding
         }

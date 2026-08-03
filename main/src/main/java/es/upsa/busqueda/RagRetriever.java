@@ -7,8 +7,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static es.upsa.busqueda.BusquedaLexica.aConsultaRediSearch;
-
 /**
  * Recuperación de contexto (RAG explícito).
  *
@@ -45,8 +43,7 @@ public class RagRetriever {
     /** Fragmentos que acaban en el contexto del modelo. */
     @ConfigProperty(name = "rag.retriever.max-results", defaultValue = "3")
     int maxResultados;
-    @Inject
-    BusquedaLexica consultaLexica;
+
     /**
      * Devuelve el contexto formateado (con su procedencia) listo para inyectar
      * en el system message. Una sola entrada de log por pregunta, con todo lo
@@ -95,8 +92,5 @@ public class RagRetriever {
     private static String resumir(String texto) {
         String plano = texto.replaceAll("\\s+", " ").trim();
         return plano.length() <= 100 ? plano : plano.substring(0, 100) + "...";
-    }
-    public String consultaDe(String pregunta) {        // ya existe como aConsultaRediSearch
-        return aConsultaRediSearch(pregunta);
     }
 }

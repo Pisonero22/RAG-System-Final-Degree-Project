@@ -25,7 +25,7 @@ public class BusquedaLexica {
     private static final Pattern TERMINO = Pattern.compile("[\\p{L}\\p{N}]+");
 
     /** Campos que se piden a Redis: el texto y todo lo necesario para la cita. */
-    private static final List<String> CAMPOS = List.of("scalar", "file", "page", "nombre", "file_name");
+    private static final List<String> CAMPOS = List.of("scalar", "file", "page", "nombre", "file_name", "fila");
     /**
      * Palabras funcionales del español. RediSearch elimina automáticamente las
      * palabras vacías del INGLÉS: su lista por defecto no conoce "del", "los" ni
@@ -45,10 +45,12 @@ public class BusquedaLexica {
             // verbos y muletillas de pregunta
             "es", "son", "ser", "está", "están", "hay", "tiene", "tienen", "dice", "dicen",
             "dime", "dame", "decir", "saber", "sabes", "hace", "hacen", "puede", "pueden",
+            "vale", "valen", "cuesta", "cuestan", "sale", "salen",
             // otros muy frecuentes
             "me", "te", "se", "le", "les", "nos", "mi", "mis", "tu", "tus", "su", "sus",
             "este", "esta", "esto", "estos", "estas", "ese", "esa", "eso", "muy", "más",
-            "menos", "todo", "toda", "todos", "todas", "algo", "nada", "otro", "otra");
+            "menos", "todo", "toda", "todos", "todas", "algo", "nada", "otro", "otra"
+    );
 
     @Inject
     RedisDataSource redis;
@@ -126,9 +128,19 @@ public class BusquedaLexica {
      * 2) SÍ se filtran las palabras funcionales del español, porque RediSearch
      *    solo conoce las inglesas (ver VACIAS).
      *
-     * Los términos se unen con OR: interesa traer candidatos y que el algoritmo
-     * de relevancia los ordene. Con AND, cualquier pregunta larga no encontraría
-     * nada.
+     * Los términos se unen con AND (en RediSearch el espacio es intersección):
+     * el fragmento debe contener TODOS los términos. Se probó primero con OR y
+     * era inservible: cualquier palabra frecuente arrastraba fragmentos sin
+     * relación —"por qué los manuscritos del mar muerto son importantes" devolvía
+     * una fila de refrigeradores por coincidir en "por"— y esos falsos positivos
+     * llegaban a la fusión con puesto alto.
+     *
+     * El AND es más frágil (un término ausente del índice anula la consulta
+     * entera) pero es la semántica que corresponde a una búsqueda literal: si se
+     * quisieran candidatos amplios, ya está la rama densa para eso. La fragilidad
+     * es justo lo que hace imprescindible el filtro de palabras vacías de abajo:
+     * con AND, exigir "de" o "que" en el fragmento sería una condición gratuita
+     * que puede dejar fuera el resultado bueno.
      */
     static String aConsultaRediSearch(String pregunta) {
         if (pregunta == null) {
