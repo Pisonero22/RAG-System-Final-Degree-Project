@@ -71,11 +71,18 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
                 // Metadatos mínimos: fichero y fila. Las columnas van solo en el TEXTO.
                 Map<String, Object> map = new LinkedHashMap<>();
                 map.put("nombre", nombreLimpio);
+                map.put("fila", rowNum);
+                map.put("filaTexto", String.valueOf(rowNum));
                 StringBuilder text = new StringBuilder();
-                for (String header : parser.getHeaderNames()) {
-                    String value = record.get(header);
-                    text.append(header).append(": ").append(value).append("\n");
-                }
+                    for (String header : parser.getHeaderNames()) {
+                        String value = record.get(header);
+                        // Los guiones bajos de las cabeceras ("ID_Producto", "Precio_Base_EUR")
+                        // no son separadores para RediSearch: la cabecera queda como un único
+                        // término ("precio_base_eur") y palabras como "precio" o "producto" se
+                        // vuelven imposibles de encontrar con la búsqueda léxica. Se sustituyen
+                        // por espacios, que además mejora ligeramente el embedding.
+                        text.append(header.replace('_', ' ')).append(": ").append(value).append("\n");
+                    }
 
                 Metadata meta = Metadata.from(map);
                 documents.add(Document.from(text.toString(), meta));

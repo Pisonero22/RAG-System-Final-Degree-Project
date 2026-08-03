@@ -7,7 +7,7 @@ import es.upsa.ragconfiguration.QueryRewriteService;
 import es.upsa.ragconfiguration.RagAssistant;
 import dev.langchain4j.data.message.UserMessage;
 
-import es.upsa.ragconfiguration.RagRetriever;
+import es.upsa.busqueda.RagRetriever;
 import es.upsa.store.RagChatMemoryStore;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -16,6 +16,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.Normalizer;
 import java.util.List;
 
 @ApplicationScoped
@@ -71,7 +72,15 @@ public class RagChatService {
             String contexto = ragRetriever.buscarContexto(consulta);
             // 2) Generación: el contexto viaja en el system message.
             long t0 = System.nanoTime();
-            String respuesta = assistant.chat(slot, username, contexto, pregunta);
+            // El modelo recibe la pregunta ORIGINAL, pero la búsqueda pudo hacerse con
+            // una consulta reescrita. Si difieren, se le indica: sin esa pista, ante un
+            // contexto que no encaja con su lectura de la pregunta aplica la regla 4
+            // (ignorar el contexto y responder de memoria), y se pierde la recuperación.
+            String interpretacion = consulta.equals(pregunta) ? ""
+                    : "La búsqueda del contexto se ha realizado interpretando la pregunta como: \""
+                    + consulta + "\". Si el contexto encaja con esa interpretación, úsalo.";
+
+            String respuesta = assistant.chat(slot, username,interpretacion, contexto, pregunta);
             long ms = (System.nanoTime() - t0) / 1_000_000;
             log.info("[{}] slot='{}' modelo='{}' respondió en {} ms",
                     username, slot, modeloReal, ms);
@@ -147,12 +156,15 @@ public class RagChatService {
                         username, msReescritura);
                 return pregunta;
             }
-            if (reescrita.equalsIgnoreCase(pregunta)) {
-                log.debug("[{}] reescritura sin cambios ({} ms)", username, msReescritura);
-            } else {
-                log.debug("[{}] consulta reescrita ({} ms): \"{}\" -> \"{}\"",
-                        username, msReescritura, pregunta, reescrita);
+            // Cambios solo cosméticos: se usa la pregunta ORIGINAL.
+            if (soloCambiaPuntuacion(reescrita, pregunta)) {
+                log.debug("[{}] reescritura cosmética descartada ({} ms): \"{}\"",
+                        username, msReescritura, reescrita);
+                return pregunta;
             }
+            log.debug("[{}] consulta reescrita ({} ms): \"{}\" -> \"{}\"",
+                    username, msReescritura, pregunta, reescrita);
+
             return reescrita;
         } catch (Exception e) {
             log.warn("[{}] falló la reescritura de consulta, se usa la original: {}",
@@ -192,5 +204,24 @@ public class RagChatService {
         String plano = texto.replaceAll("\\s+", " ").trim();
         return plano.length() <= 250 ? plano : plano.substring(0, 250) + "...";
     }
+    /**
+     * ¿La reescritura solo cambia signos de puntuación, tildes o mayúsculas?
+     *
+     * Motivo medido: añadir un punto final a "Hola" desplaza su embedding lo
+     * justo para cruzar el umbral de similitud y recuperar 5 fragmentos de
+     * ruido (patentes, Plutón, perímetros de seguridad). Observado tres veces.
+     * Como es un criterio exacto, se resuelve en código y no pidiéndoselo al
+     * modelo en el prompt.
+     */
+    private static boolean soloCambiaPuntuacion(String reescrita, String original) {
+        return esqueleto(reescrita).equals(esqueleto(original));
+    }
 
+    /** El texto reducido a letras y dígitos, sin tildes ni mayúsculas. */
+    private static String esqueleto(String texto) {
+        return Normalizer.normalize(texto, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")               // fuera las tildes
+                .replaceAll("[^\\p{L}\\p{N}]", "")      // fuera signos y espacios
+                .toLowerCase();
+    }
 }

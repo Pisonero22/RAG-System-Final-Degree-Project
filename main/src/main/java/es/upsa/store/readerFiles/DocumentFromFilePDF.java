@@ -5,7 +5,7 @@ import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
 
 
-
+import es.upsa.busqueda.Fuentes;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -78,7 +78,8 @@ public class DocumentFromFilePDF implements DocumentLoaderService {
                     continue;
                 }
                 numeros.add(pageNum);
-                textos.add(text.replaceAll("[^\\S\\n]+", " ").trim());
+                textos.add(Fuentes.separarSaltos(text.replaceAll("[^\\S\\n]+", " ").trim()));
+
             }
         }
         List<Document> segments = new ArrayList<>();

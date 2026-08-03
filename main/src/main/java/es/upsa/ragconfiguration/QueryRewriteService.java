@@ -45,13 +45,26 @@ public interface QueryRewriteService {
         - AFIRMACIÓN: si el mensaje no es una pregunta sino un dato que el usuario
           cuenta sobre sí mismo ("me llamo...", "vivo en...", "estudio..."),
           devuélvelo EXACTAMENTE igual. No lo conviertas en pregunta.
-
+        - Añade contexto SOLO si el mensaje no dice de qué habla: "¿y el precio?",
+          "¿cuánto dura?", "¿y el 6?". Ahí el sujeto hay que recuperarlo del historial.
+        - Si el mensaje YA NOMBRA su sujeto ("¿por qué se escondieron los manuscritos?",
+          "¿qué dice sobre los trajes Clase IV?"), devuélvelo TAL CUAL. No le añadas
+          temas de intercambios anteriores aunque estén relacionados.
+        - SUJETO EXPLÍCITO: si el mensaje ya dice de qué habla ("¿por qué se
+          escondieron los manuscritos?", "¿qué dice sobre los trajes Clase IV?"),
+          devuélvelo TAL CUAL. No le añadas temas de intercambios anteriores
+          aunque estén relacionados.
+        - SUJETO IMPLÍCITO: si el mensaje NO dice de qué habla ("¿y cuánto dura?",
+          "¿y el 6?", "¿cuánto cuesta?"), entonces SÍ debes recuperar el sujeto
+          del último intercambio y escribirlo explícitamente.
         Ejemplos:
         (hablando de la PlayStation 5) "¿y cuánto cuesta?" -> precio de la PlayStation 5
         (hablando del yogur natural) "¿y el formato ahorro?" -> precio del yogur natural formato ahorro
         (hablando de la leche entera premium) "¿y la normal?" -> precio de la leche entera normal, no premium
         (hablando de un torneo de ajedrez) "¿Cómo se llama el buque de investigación?" -> ¿Cómo se llama el buque de investigación?
         "¿Dónde se ha celebrado el torneo de ajedrez?" -> ¿Dónde se ha celebrado el torneo de ajedrez?
+        (hablando del manual de misiones) "¿por qué se escondieron los manuscritos?" -> ¿por qué se escondieron los manuscritos?
+        (hablando del desembarco final) "¿y cuánto puede durar?" -> cuánto puede durar el desembarco final en las estaciones de cuarentena
         """)
     String reescribir(String historial, String mensaje);
 }
