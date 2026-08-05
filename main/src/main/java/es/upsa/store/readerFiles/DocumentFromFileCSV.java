@@ -72,7 +72,6 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
                 Map<String, Object> map = new LinkedHashMap<>();
                 map.put("nombre", nombreLimpio);
                 map.put("fila", rowNum);
-                map.put("filaTexto", String.valueOf(rowNum));
                 StringBuilder text = new StringBuilder();
                     for (String header : parser.getHeaderNames()) {
                         String value = record.get(header);

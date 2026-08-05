@@ -131,9 +131,6 @@
             <button id="send" class="btn btn-primary btn-block" disabled>Enviar</button>
         </div>
         <div class="col-md-2">
-            <button id="ingest" class="btn btn-warning btn-block">Ingestar Datos</button>
-        </div>
-        <div class="col-md-2">
             <button id="reset" class="btn btn-danger btn-block">Reset Storage</button>
         </div>
         <div class="col-md-2">
@@ -181,6 +178,7 @@
 
             const $btn = $("#clean-uploads").prop("disabled", true);
             appendSystemMessage("Limpiando subidas y reconstruyendo el índice…");
+
 
             $.ajax({
                 url: "/service/reset",

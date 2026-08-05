@@ -4,6 +4,7 @@ import es.upsa.files.FileUploadService;
 import es.upsa.providers.storages.RedisStorage;
 import es.upsa.security.AdminEndpoint;
 import es.upsa.store.StorageProvider;
+import es.upsa.store.readerFiles.DocumentFromFileTxt;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -11,6 +12,8 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.Config;
 import org.jboss.resteasy.reactive.RestForm;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,6 +24,8 @@ import java.util.Map;
 @ApplicationScoped
 @Path("/service")
 public class ChatResource {
+
+    private static final Logger log = LoggerFactory.getLogger(ChatResource.class);
 
     @Inject
     @RedisStorage
@@ -33,13 +38,19 @@ public class ChatResource {
 
     @POST
     @Path("/reset")
-    @Produces(MediaType.TEXT_PLAIN)
     @AdminEndpoint
     public Response resetRedis() throws IOException {
-        storage.resetEmbeddingStore();
-        return Response.ok()
-                .entity("Storage reiniciada y documentos reingestados con éxito")
-                .build();
+        try {
+            storage.resetEmbeddingStore();
+            return Response.ok()
+                    .entity("Storage reiniciada y documentos reingestados con éxito")
+                    .build();
+        }catch (IllegalStateException e) {
+            return Response.status(Response.Status.CONFLICT).entity(e.getMessage()).build();
+        } catch (IOException e) {
+            log.error("Reset failed", e);
+            return Response.serverError().entity("Reset failed: " + e.getMessage()).build();
+        }
     }
 
     @POST
@@ -108,8 +119,14 @@ public class ChatResource {
     @Produces(MediaType.TEXT_PLAIN)
     @AdminEndpoint
     public Response limpiarSubidas() throws IOException {
+        try{
         int borrados = fileUploadService.borrarSubidas();   // vacía los tres uploads/
         storage.resetEmbeddingStore();                      // reconstruye desde el corpus versionado
         return Response.ok("Subidas eliminadas: " + borrados + ". Índice reconstruido desde el corpus base.").build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+        } catch (IOException e) {
+            return Response.serverError().entity("Error al limpiar las subidas: " + e.getMessage()).build();
+        }
     }
 }

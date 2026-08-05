@@ -17,18 +17,20 @@ public final class Fuentes {
 
     private Fuentes() {}   // clase de utilidad: no se instancia
 
-    public static String formatear(Map<String, ?> metadatos) {
-        if (metadatos.containsKey("file")) {                       // PDF
-            return limpiarNombre(metadatos.get("file"))
-                    + " (pág. " + numero(metadatos.get("page")) + ")";
+    public static String formatear(Map<String, ?> metadata) {
+        if (metadata.containsKey("file")) {                       // PDF
+            Object page = metadata.get("page");
+            return cleanName(metadata.get("file"))
+                    + (page == null ? "" : " (page " + number(page) + ")");
         }
-        if (metadatos.containsKey("file_name")) {                  // TXT
-            return limpiarNombre(metadatos.get("file_name"));
+        if (metadata.containsKey("file_name")) {                  // TXT
+            return cleanName(metadata.get("file_name"));
         }
-        if (metadatos.containsKey("nombre")) {                     // CSV
-            Object fila = metadatos.get("fila");
-            return limpiarNombre(metadatos.get("nombre"))
-                    + (fila == null ? "" : " (fila " + numero(fila) + ")");
+
+        if (metadata.containsKey("nombre")) {                     // CSV
+            Object fila = metadata.get("fila");
+            return cleanName(metadata.get("nombre"))
+                    + (fila == null ? "" : " (fila " + number(fila) + ")");
         }
         return "fuente desconocida";
     }
@@ -45,17 +47,17 @@ public final class Fuentes {
      * respetar los límites de párrafo; solo se separan de las palabras vecinas.
      * La búsqueda densa no se ve afectada por este problema ni por su arreglo.
      */
-    public static String separarSaltos(String texto) {
-        return texto.replaceAll("[ \\t]*\\n[ \\t]*", " \n ");
+    public static String separarSaltos(String text) {
+        return text.replaceAll("[ \\t]*\\r?\\n[ \\t]*", " \n ");
     }
     /** "bd49ab9c-..._Productos.csv" -> "Productos.csv" (prefijo UUID de las subidas). */
-    private static String limpiarNombre(Object valor) {
+    private static String cleanName(Object valor) {
         return String.valueOf(valor).replaceFirst("^[0-9a-fA-F-]{36}_", "");
     }
 
     /** Los números pueden llegar como Double (16.0) desde langchain4j o como
      *  cadena ("16") desde RediSearch: en ambos casos se muestran sin decimales. */
-    private static String numero(Object valor) {
+    private static String number(Object valor) {
         return (valor instanceof Number n) ? String.valueOf(n.longValue()) : String.valueOf(valor);
     }
 

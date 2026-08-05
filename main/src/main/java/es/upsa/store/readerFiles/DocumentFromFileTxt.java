@@ -30,9 +30,8 @@ public class DocumentFromFileTxt implements DocumentLoaderService{
             return List.of();
         }
         if (!file.canRead()) {
-            throw new IllegalStateException(
-                    "No se puede leer el fichero o directorio: " + filePath
-            );
+            log.warn("No se puede leer el fichero o directorio: '{}", filePath);
+            return List.of();
         }
         PathMatcher soloTxt = FileSystems.getDefault().getPathMatcher("glob:**.txt");
         List<Document> documents = loadDocumentsRecursively(filePath, soloTxt, new TextDocumentParser());
@@ -51,7 +50,12 @@ public class DocumentFromFileTxt implements DocumentLoaderService{
 
     @Override
     public List<Document> loadFile(Path txtPath) throws IOException {
+
         Document doc = FileSystemDocumentLoader.loadDocument(txtPath, new TextDocumentParser());
+
+        if(doc == null) {
+            return List.of();
+        }
         return List.of(Document.from(Fuentes.separarSaltos(doc.text()), doc.metadata()));
 
     }

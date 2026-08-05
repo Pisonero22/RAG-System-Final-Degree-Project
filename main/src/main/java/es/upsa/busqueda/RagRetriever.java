@@ -37,8 +37,8 @@ public class RagRetriever {
     boolean hibridoActivo;
 
     /** Candidatos que aporta cada búsqueda a la fusión. */
-    @ConfigProperty(name = "rag.retriever.candidates", defaultValue = "10")
-    int candidatos;
+    @ConfigProperty(name = "rag.retriever.knnCandidates", defaultValue = "10")
+    int knnCandidates;
 
     /** Fragmentos que acaban en el contexto del modelo. */
     @ConfigProperty(name = "rag.retriever.max-results", defaultValue = "3")
@@ -54,10 +54,10 @@ public class RagRetriever {
     public String buscarContexto(String pregunta) {
         long t0 = System.nanoTime();
 
-        List<Fragmento> densos = densa.buscar(pregunta, candidatos);
+        List<Fragmento> densos = densa.buscar(pregunta, knnCandidates);
 
         BusquedaLexica.ResultadoLexico lexico = hibridoActivo
-                ? lexica.buscar(pregunta, candidatos)
+                ? lexica.buscar(pregunta, knnCandidates)
                 : BusquedaLexica.ResultadoLexico.vacio("(híbrida desactivada)");
         List<Fragmento> lexicos = lexico.fragmentos();
 

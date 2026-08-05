@@ -49,7 +49,13 @@ public class BusquedaLexica {
             // otros muy frecuentes
             "me", "te", "se", "le", "les", "nos", "mi", "mis", "tu", "tus", "su", "sus",
             "este", "esta", "esto", "estos", "estas", "ese", "esa", "eso", "muy", "más",
-            "menos", "todo", "toda", "todos", "todas", "algo", "nada", "otro", "otra"
+            "menos", "todo", "toda", "todos", "todas", "algo", "nada", "otro", "otra",
+            // interrogatives
+            "what", "which", "how", "where", "when", "who", "why",
+            // question verbs and fillers that never appear in the data
+            "does", "do", "did", "is", "are", "was", "were", "can", "could",
+            "say", "says", "tell", "give", "show", "cost", "costs", "price",
+            "much", "many", "there", "about", "with", "from", "into"
     );
 
     @Inject

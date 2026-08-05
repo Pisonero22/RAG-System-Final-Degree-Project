@@ -70,7 +70,7 @@ public class RagChatService {
 
             // 2) Recuperación explícita del contexto (RAG).
             String contexto = ragRetriever.buscarContexto(consulta);
-            // 2) Generación: el contexto viaja en el system message.
+            // 3) Generación: el contexto viaja en el system message.
             long t0 = System.nanoTime();
             // El modelo recibe la pregunta ORIGINAL, pero la búsqueda pudo hacerse con
             // una consulta reescrita. Si difieren, se le indica: sin esa pista, ante un

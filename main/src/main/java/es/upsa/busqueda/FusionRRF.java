@@ -32,9 +32,6 @@ public class FusionRRF {
     @ConfigProperty(name = "rag.fusion.k", defaultValue = "60")
     int k;
 
-    /** La lista léxica pondera algo menos: en preguntas conversacionales puede
-     *  devolver coincidencias casuales, mientras que la densa acierta al no
-     *  devolver nada. */
     @ConfigProperty(name = "rag.fusion.peso-denso", defaultValue = "1.0")
     double pesoDenso;
     /**

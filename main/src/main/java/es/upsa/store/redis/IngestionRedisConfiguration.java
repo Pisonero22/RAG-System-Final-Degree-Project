@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @ApplicationScoped
 @RedisStorage
@@ -33,6 +34,8 @@ public class IngestionRedisConfiguration implements StorageProvider {
 
 
     private static final Logger log = LoggerFactory.getLogger(IngestionRedisConfiguration.class);
+    private final AtomicBoolean reindexing = new AtomicBoolean(false);
+
 
     @Inject
     RedisEmbeddingStore embeddingStore;
@@ -60,13 +63,79 @@ public class IngestionRedisConfiguration implements StorageProvider {
     RedisDataSource redis;
 
 
+
     private record Corpus(List<Document> filas, List<Document> prosa) {
         boolean vacio() { return filas.isEmpty() && prosa.isEmpty(); }
         int total()     { return filas.size() + prosa.size(); }
     }
 
+
+    /**
+     * Reset = borrar todas las claves de embeddings y reingestar.
+     *
+     * AQUÍ YA NO SE HACE FT.DROPINDEX, y es importante entender por qué:
+     * la extensión de Redis solo crea el índice UNA vez, al arrancar la aplicación
+     * (en el constructor de RedisEmbeddingStore). Si tiras el índice en caliente,
+     * nada lo recrea, y todas las búsquedas fallan con "No such index" hasta el
+     * siguiente reinicio (verificado: es exactamente lo que pasó al usar /reset
+     * en mitad de una sesión).
+     *
+     * Borrar las claves es suficiente para "resetear" los datos: RediSearch
+     * des-indexa automáticamente las claves borradas y re-indexa las nuevas.
+     *
+     * Caso aparte: si cambias de MODELO DE EMBEDDINGS o de DIMENSIÓN, el esquema
+     * del índice sí debe cambiar, y eso exige: parar la app -> redis-cli FLUSHALL
+     * -> arrancar (se recrea el índice con el esquema nuevo) ->
+     */
     @Override
-    public void clearIngestionCache() {
+    public void resetEmbeddingStore() throws IOException {
+        if (!reindexing.compareAndSet(false, true)) {
+            throw new IllegalStateException("A reindex is already running");
+        }
+        try {
+            Corpus corpus = cargarCorpus();          // 1) cargar y validar
+            long t0 = System.nanoTime();
+
+            if (corpus.vacio()) {
+                log.warn("Reset CANCELADO: no se ha podido cargar ningún documento. "
+                        + "El índice actual se mantiene intacto.");
+                return;                              //    mejor el índice viejo que ninguno
+            }
+            clearIngestionCache();
+            indexar(corpus);
+
+            log.info("Reset completado: {} documentos reindexados en {} ms", corpus.total(),(System.nanoTime() - t0) / 1_000_000);
+        } finally {
+            reindexing.set(false);
+        }
+    }
+
+    @Override
+    public void ingestFile(Path file) throws IOException {
+        String nombre = file.getFileName().toString().toLowerCase();
+        boolean esCsv = nombre.endsWith(".csv");
+
+        List<Document> docs;
+        if (esCsv)                        docs = documentFromFileCSV.loadFile(file);
+        else if (nombre.endsWith(".pdf")) docs = documentFromFilePDF.loadFile(file);
+        else if (nombre.endsWith(".txt")) docs = documentFromFileTxt.loadFile(file);
+        else throw new IllegalArgumentException("Extensión no soportada: " + file);
+
+        // Esto preguntar si no lo podria cambiar a la forma que lo pongo yo o si hay alguna razon para ponerlo asi
+        var builder = ingestor();
+        if (!esCsv) {
+            builder.documentSplitter(recursive(512, 128));   // CSV: 1 fila = 1 embedding
+        }
+        builder.build().ingest(docs);
+
+        log.info("Ingesta incremental de '{}': {} documentos", file.getFileName(), docs.size());
+    }
+
+
+
+
+
+    private void clearIngestionCache() {
         var keyCommands = redis.key();
         var cursor = keyCommands.scan(new KeyScanArgs().match("embedding:*").count(500));
         while (cursor.hasNext()) {
@@ -75,14 +144,6 @@ public class IngestionRedisConfiguration implements StorageProvider {
                 keyCommands.del(batch.toArray(new String[0]));
             }
         }
-    }
-
-
-
-
-    @Override
-    public void ingest() throws IOException {
-        indexar(cargarCorpus());
     }
 
     private Corpus cargarCorpus() throws IOException {
@@ -122,60 +183,6 @@ public class IngestionRedisConfiguration implements StorageProvider {
                 .textSegmentTransformer(s -> TextSegment.from(Fuentes.separarSaltos(s.text()), s.metadata()));
     }
 
-    /**
-     * Reset = borrar todas las claves de embeddings y reingestar.
-     *
-     * AQUÍ YA NO SE HACE FT.DROPINDEX, y es importante entender por qué:
-     * la extensión de Redis solo crea el índice UNA vez, al arrancar la aplicación
-     * (en el constructor de RedisEmbeddingStore). Si tiras el índice en caliente,
-     * nada lo recrea, y todas las búsquedas fallan con "No such index" hasta el
-     * siguiente reinicio (verificado: es exactamente lo que pasó al usar /reset
-     * en mitad de una sesión).
-     *
-     * Borrar las claves es suficiente para "resetear" los datos: RediSearch
-     * des-indexa automáticamente las claves borradas y re-indexa las nuevas.
-     *
-     * Caso aparte: si cambias de MODELO DE EMBEDDINGS o de DIMENSIÓN, el esquema
-     * del índice sí debe cambiar, y eso exige: parar la app -> redis-cli FLUSHALL
-     * -> arrancar (se recrea el índice con el esquema nuevo) -> POST /service/ingest.
-     */
-    @Override
-    public void resetEmbeddingStore() throws IOException {
-        Corpus corpus = cargarCorpus();          // 1) cargar y validar
-        long t0 = System.nanoTime();
-
-        if (corpus.vacio()) {
-            log.warn("Reset CANCELADO: no se ha podido cargar ningún documento. "
-                    + "El índice actual se mantiene intacto.");
-            return;                              //    mejor el índice viejo que ninguno
-        }
-        clearIngestionCache();
-        indexar(corpus);
-
-        log.info("Reset completado: {} documentos reindexados en {} ms", corpus.total(),(System.nanoTime() - t0) / 1_000_000);
-
-    }
-
-    @Override
-    public void ingestFile(Path file) throws IOException {
-        String nombre = file.getFileName().toString().toLowerCase();
-        boolean esCsv = nombre.endsWith(".csv");
-
-        List<Document> docs;
-        if (esCsv)                        docs = documentFromFileCSV.loadFile(file);
-        else if (nombre.endsWith(".pdf")) docs = documentFromFilePDF.loadFile(file);
-        else if (nombre.endsWith(".txt")) docs = documentFromFileTxt.loadFile(file);
-        else throw new IllegalArgumentException("Extensión no soportada: " + file);
-
-        // Esto preguntar si no lo podria cambiar a la forma que lo pongo yo o si hay alguna razon para ponerlo asi
-        var builder = ingestor();
-        if (!esCsv) {
-            builder.documentSplitter(recursive(512, 128));   // CSV: 1 fila = 1 embedding
-        }
-        builder.build().ingest(docs);
-
-        log.info("Ingesta incremental de '{}': {} documentos", file.getFileName(), docs.size());
-    }
 
 
 }
