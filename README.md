@@ -43,3 +43,11 @@ flowchart LR
     ING --> EM["bge-m3<br/>1024 dims"]
     EM --> RS[("RediSearch<br/>embedding-index")]
 ```
+
+
+
+
+## Author
+
+Final Degree Project — Alejandro Pisonero
+Universidad Pontificia de Salamanca, 2025–2026
