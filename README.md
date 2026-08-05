@@ -1,3 +1,13 @@
+# RAG System — Final Degree Project
+
+![CI](https://github.com/Pisonero22/RAG-System-Final-Degree-Project/actions/workflows/ci.yml/badge.svg)
+
+Hybrid retrieval-augmented generation system over a local document corpus:
+dense vector search (bge-m3 + RediSearch) fused with BM25 lexical search via
+Reciprocal Rank Fusion, served through Quarkus and local LLMs on Ollama.
+
+
+
 ## Arquitectura
 
 ### Pipeline de consulta
