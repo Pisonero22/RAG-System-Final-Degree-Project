@@ -59,7 +59,7 @@ public class RagRetriever {
 
         LexicalSearch.LexicalResult lexico = hybridEnabled
                 ? lexical.search(pregunta, candidates)
-                : LexicalSearch.LexicalResult.vacio("(híbrida desactivada)");
+                : LexicalSearch.LexicalResult.empty("(híbrida desactivada)");
         List<Chunk> lexicos = lexico.chunks();
 
         List<RrfFusion.Result> finales = fusion.fuse(densos, lexicos, maxResults);

@@ -21,6 +21,6 @@ target/
 redis-data/
 
 
-# Archivos subidos en caliente por /service/upload: no forman parte del corpus
+# Archivos subidos en caliente por /service/admin/upload: no forman parte del corpus
 # de ejemplo del proyecto y se regeneran subiéndolos otra vez.
 main/data/rag/**/uploads/

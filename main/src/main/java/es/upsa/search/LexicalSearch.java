@@ -72,8 +72,8 @@ public class LexicalSearch {
      * saneador dos veces y a exponer un detalle interno de esta clase.
      */
     public record LexicalResult(String query, List<Chunk> chunks) {
-        static LexicalResult vacio(String consulta) {
-            return new LexicalResult(consulta, List.of());
+        static LexicalResult empty(String query) {
+            return new LexicalResult(query, List.of());
         }
     }
     /** Una palabra de 4 letras o más. */
@@ -100,7 +100,7 @@ public class LexicalSearch {
         String consulta = toRediSearchQuery(pregunta);
 
         if (consulta.isBlank() || !hasContentWord(consulta)) {
-            return LexicalResult.vacio(consulta);
+            return LexicalResult.empty(consulta);
         }
         try {
             QueryArgs args = new QueryArgs().limit(0, limite);
@@ -117,7 +117,7 @@ public class LexicalSearch {
         } catch (Exception e) {
             log.warn("Búsqueda léxica fallida ('{}'), se continúa solo con la densa: {}",
                     consulta, e.toString());
-            return LexicalResult.vacio(consulta);
+            return LexicalResult.empty(consulta);
         }
     }
 

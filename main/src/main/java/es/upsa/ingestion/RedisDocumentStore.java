@@ -82,7 +82,7 @@ public class RedisDocumentStore implements DocumentStore {
      *
      * Caso aparte: si cambias de MODELO DE EMBEDDINGS o de DIMENSIÓN, el esquema
      * del índice sí debe cambiar, y eso exige: parar la app -> redis-cli FLUSHALL
-     * -> arrancar (se recrea el índice con el esquema nuevo) -> POST /service/reset.
+     * -> arrancar (se recrea el índice con el esquema nuevo) -> POST /service/admin/reset.
      */
     @Override
     public void rebuildIndex() throws IOException {
