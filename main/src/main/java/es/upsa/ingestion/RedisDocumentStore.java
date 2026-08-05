@@ -6,10 +6,9 @@ import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
-import es.upsa.search.Sources;
-import es.upsa.qualifier.loaders.CsvDocumentLoader;
-import es.upsa.qualifier.loaders.PdfDocumentLoader;
-import es.upsa.qualifier.loaders.TxtDocumentLoader;
+import es.upsa.ingestion.loaders.CsvDocumentLoader;
+import es.upsa.ingestion.loaders.PdfDocumentLoader;
+import es.upsa.ingestion.loaders.TxtDocumentLoader;
 import io.quarkiverse.langchain4j.redis.RedisEmbeddingStore;
 import io.quarkus.redis.datasource.RedisDataSource;
 import io.quarkus.redis.datasource.keys.KeyScanArgs;
@@ -41,11 +40,11 @@ public class RedisDocumentStore implements DocumentStore {
     EmbeddingModel embeddingModel;
 
     @Inject
-    TxtDocumentLoader txtDocumentLoader;
+    TxtDocumentLoader txtLoader;
     @Inject
-    CsvDocumentLoader CSVDocumentLoader;
+    CsvDocumentLoader csvLoader;
     @Inject
-    PdfDocumentLoader pdfDocumentLoader;
+    PdfDocumentLoader pdfLoader;
 
 
     @ConfigProperty(name = "rag.location.txt")
@@ -63,7 +62,7 @@ public class RedisDocumentStore implements DocumentStore {
 
 
     private record Corpus(List<Document> rows, List<Document> prose) {
-        boolean vacio() { return rows.isEmpty() && prose.isEmpty(); }
+        boolean empty() { return rows.isEmpty() && prose.isEmpty(); }
         int total()     { return rows.size() + prose.size(); }
     }
 
@@ -94,12 +93,12 @@ public class RedisDocumentStore implements DocumentStore {
             Corpus corpus = loadCorpus();          // 1) cargar y validar
             long t0 = System.nanoTime();
 
-            if (corpus.vacio()) {
+            if (corpus.empty()) {
                 log.warn("Reset CANCELADO: no se ha podido cargar ningún documento. "
                         + "El índice actual se mantiene intacto.");
                 return;                              //    mejor el índice viejo que ninguno
             }
-            deleteAllEmbedings();
+            deleteAllEmbeddings();
             index(corpus);
 
             log.info("Reset completado: {} documentos reindexados en {} ms", corpus.total(),(System.nanoTime() - t0) / 1_000_000);
@@ -114,9 +113,9 @@ public class RedisDocumentStore implements DocumentStore {
         boolean esCsv = nombre.endsWith(".csv");
 
         List<Document> docs;
-        if (esCsv)                        docs = CSVDocumentLoader.loadFile(file);
-        else if (nombre.endsWith(".pdf")) docs = pdfDocumentLoader.loadFile(file);
-        else if (nombre.endsWith(".txt")) docs = txtDocumentLoader.loadFile(file);
+        if (esCsv)                        docs = csvLoader.loadFile(file);
+        else if (nombre.endsWith(".pdf")) docs = pdfLoader.loadFile(file);
+        else if (nombre.endsWith(".txt")) docs = txtLoader.loadFile(file);
         else throw new IllegalArgumentException("Extensión no soportada: " + file);
 
         var builder = ingestor();
@@ -128,7 +127,7 @@ public class RedisDocumentStore implements DocumentStore {
         log.info("Ingesta incremental de '{}': {} documentos", file.getFileName(), docs.size());
     }
 
-    private void deleteAllEmbedings() {
+    private void deleteAllEmbeddings() {
         var keyCommands = redis.key();
         var cursor = keyCommands.scan(new KeyScanArgs().match("embedding:*").count(500));
         while (cursor.hasNext()) {
@@ -140,10 +139,10 @@ public class RedisDocumentStore implements DocumentStore {
     }
 
     private Corpus loadCorpus() throws IOException {
-        List<Document> filas = CSVDocumentLoader.load(csvFiles);
+        List<Document> filas = csvLoader.load(csvFiles);
         List<Document> prosa = new ArrayList<>();
-        prosa.addAll(txtDocumentLoader.load(txtFile));
-        prosa.addAll(pdfDocumentLoader.load(pdfFiles));
+        prosa.addAll(txtLoader.load(txtFile));
+        prosa.addAll(pdfLoader.load(pdfFiles));
         return new Corpus(filas, prosa);
     }
 
@@ -173,7 +172,7 @@ public class RedisDocumentStore implements DocumentStore {
         return EmbeddingStoreIngestor.builder()
                 .embeddingStore(embeddingStore)
                 .embeddingModel(embeddingModel)
-                .textSegmentTransformer(s -> TextSegment.from(Sources.normalizeLineBreaks(s.text()), s.metadata()));
+                .textSegmentTransformer(s -> TextSegment.from(TextNormalizer.normalizeLineBreaks(s.text()), s.metadata()));
     }
 
 

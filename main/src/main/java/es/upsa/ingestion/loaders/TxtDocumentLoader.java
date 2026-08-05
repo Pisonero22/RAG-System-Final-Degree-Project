@@ -1,4 +1,4 @@
-package es.upsa.qualifier.loaders;
+package es.upsa.ingestion.loaders;
 
 import static dev.langchain4j.data.document.loader.FileSystemDocumentLoader.loadDocumentsRecursively;
 

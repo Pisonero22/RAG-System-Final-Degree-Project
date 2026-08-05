@@ -180,11 +180,10 @@
             }
             const $btn = $("#reset").prop("disabled", true);
 
-            appendSystemMessage("Limpiando subidas y reconstruyendo el índice…");
-
+            appendSystemMessage("Reconstruyendo el índice… esto tardará unos segundos.");
 
             $.ajax({
-                url: "/service/reset",
+                url: "/service/admin/reset",
                 type: "POST",
                 headers: { "X-API-KEY": getAdminKey() },
                 dataType: "text",
@@ -194,7 +193,6 @@
                 },
                 error: (xhr, status, error) => {
                     $btn.prop("disabled", false);
-                    appendSystemMessage("Error en el reset: " + error);
                     appendSystemMessage(xhr.status === 409
                         ? "Ya hay un reindexado en curso. Espera a que termine."
                         : "Error en el reset: " + (xhr.responseText || xhr.statusText));
@@ -209,7 +207,7 @@
             const $btn = $("#clean-uploads").prop("disabled", true);
             appendSystemMessage("Limpiando subidas y reconstruyendo el índice…");
             $.ajax({
-                url: "/service/clean-uploads",
+                url: "/service/admin/clean-uploads",
                 type: "POST",
                 dataType: "text",
                 headers: { "X-API-KEY": getAdminKey() },
@@ -247,7 +245,7 @@
 
 
             $.ajax({
-                url: "/service/upload",
+                url: "/service/admin/upload",
                 type: "POST",
                 data: formData,
                 headers: { "X-API-KEY": getAdminKey() },
@@ -334,6 +332,8 @@
                     appendUserMessage(chatMessage.from, chatMessage.message, esRespuestaIA);
                     if (esRespuestaIA) {
                         $("#send").prop("disabled", false);
+                    }else {
+                        mostrarGenerando();
                     }
                     break;
             }
@@ -371,8 +371,8 @@
         $("#msg").val("");
         // al enviar
         $("#send").prop("disabled", true);
-        mostrarGenerando();
-        // en onmessage, al recibir un CHAT_MESSAGE del asistente
+
+
 
 
     }

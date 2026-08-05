@@ -32,24 +32,9 @@ public final class Sources {
             return cleanName(metadata.get("nombre"))
                     + (fila == null ? "" : " (fila " + number(fila) + ")");
         }
-        return "source desconocida";
+        return "unknown source";
     }
-    /**
-     * Rodea los saltos de línea con espacios.
-     *
-     * RediSearch no considera el salto de línea un separador de términos: en
-     * "utilizar\ntrajes" ambas palabras quedan fundidas en un único término y
-     * ninguna de las dos es buscable. Medido en este corpus, eso dejaba fuera del
-     * índice léxico en torno al 10% de las palabras (una línea de PDF son ~14
-     * palabras, y cada salto inutiliza las dos que tiene a los lados).
-     *
-     * Los saltos se conservan porque el segmentador recursivo los usa para
-     * respetar los límites de párrafo; solo se separan de las palabras vecinas.
-     * La búsqueda densa no se ve afectada por este problema ni por su arreglo.
-     */
-    public static String normalizeLineBreaks(String text) {
-        return text.replaceAll("[ \\t]*\\r?\\n[ \\t]*", " \n ");
-    }
+
     /** "bd49ab9c-..._Productos.csv" -> "Productos.csv" (prefijo UUID de las subidas). */
     private static String cleanName(Object valor) {
         return String.valueOf(valor).replaceFirst("^[0-9a-fA-F-]{36}_", "");

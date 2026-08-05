@@ -18,7 +18,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 
 @ApplicationScoped
-@Path("/service")
+@Path("/service/admin")
+@AdminEndpoint
 public class AdminResource {
 
     private static final Logger log = LoggerFactory.getLogger(AdminResource.class);
@@ -34,7 +35,6 @@ public class AdminResource {
     @POST
     @Path("/reset")
     @Produces(MediaType.TEXT_PLAIN)
-    @AdminEndpoint
     public Response rebuildIndex() throws IOException {
         try {
             storage.rebuildIndex();
@@ -53,7 +53,6 @@ public class AdminResource {
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.TEXT_PLAIN)
-    @AdminEndpoint
     public Response upload(@RestForm("file") InputStream archivo,
                            @RestForm("fileName") String nombreArchivo) throws IOException {
 
@@ -85,7 +84,6 @@ public class AdminResource {
     @POST
     @Path("/clean-uploads")
     @Produces(MediaType.TEXT_PLAIN)
-    @AdminEndpoint
     public Response cleanUploads() throws IOException {
         int borrados;
         try {

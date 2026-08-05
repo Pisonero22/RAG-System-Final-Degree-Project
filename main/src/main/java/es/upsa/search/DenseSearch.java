@@ -35,7 +35,7 @@ public class DenseSearch {
     EmbeddingModel embeddingModel;
 
     @ConfigProperty(name = "quarkus.langchain4j.ollama.embedding-model.model-id")
-    String modeloEmbeddings;
+    String embeddingModelId;
     @ConfigProperty(name = "quarkus.langchain4j.redis.dimension")
     long dimension;
     @ConfigProperty(name = "rag.retriever.candidates", defaultValue = "10")
@@ -61,7 +61,7 @@ public class DenseSearch {
                 .minScore(minScore)
                 .build();
         log.info("Búsqueda densa lista: embeddings='{}' ({} dims), minScore={}",
-                modeloEmbeddings, dimension, minScore);
+                embeddingModelId, dimension, minScore);
     }
 
     /** Fragmentos ordenados por similitud, como máximo 'limite'. */
@@ -79,7 +79,7 @@ public class DenseSearch {
     }
 
     public String embeddingModelId() {
-        return modeloEmbeddings;
+        return embeddingModelId;
     }
 
 }

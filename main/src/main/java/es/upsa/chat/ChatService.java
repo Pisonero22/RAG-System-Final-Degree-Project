@@ -39,7 +39,7 @@ public class ChatService {
     @Inject
     PromptInjectionDetectionService detector;
     @ConfigProperty(name = "guardrail.threshold", defaultValue = "0.89")
-    double umbralInyeccion;
+    double injectionThreshold;
 
     @ConfigProperty(name = "rag.query-rewrite.enabled", defaultValue = "true")
     boolean rewriteEnabled;
@@ -57,7 +57,7 @@ public class ChatService {
 
         // 0) GUARDRAIL EN LA PUERTA: antes de gastar el reescritor (un LLM) y la
         //    búsqueda vectorial en un mensaje que vamos a rechazar.
-        if (isInyection(username, pregunta)) {
+        if (isInjection(username, pregunta)) {
             log.info("[{}] mensaje bloqueado por el detector de prompt injection", username);
             return "Mensaje bloqueado: se ha detectado un posible intento de prompt injection.";
         }
@@ -69,7 +69,7 @@ public class ChatService {
             String consulta = buildSearchQuery(username, pregunta);
 
             // 2) Recuperación explícita del contexto (RAG).
-            String contexto = ragRetriever.summarize(consulta);
+            String contexto = ragRetriever.retrieveContext(consulta);
             // 3) Generación: el contexto viaja en el system message.
             long t0 = System.nanoTime();
             // El modelo recibe la pregunta ORIGINAL, pero la búsqueda pudo hacerse con
@@ -91,13 +91,13 @@ public class ChatService {
             return "Ha ocurrido un error procesando tu mensaje. Inténtalo de nuevo.";
         }
     }
-    private boolean isInyection(String username, String pregunta) {
+    private boolean isInjection(String username, String pregunta) {
         long t0 = System.nanoTime();
         try {
             double score = detector.isInjection(pregunta);
             long ms = (System.nanoTime() - t0) / 1_000_000;
             log.debug("[{}] guardrail ({} ms) score={} para \"{}\"", username, ms, score, truncate(pregunta));
-            return score > umbralInyeccion;
+            return score > injectionThreshold;
         } catch (Exception e) {
             log.warn("[{}] el detector de inyección falló ({} ms), se permite el mensaje: {}",
                     username, (System.nanoTime() - t0) / 1_000_000, e.getMessage());
@@ -143,7 +143,7 @@ public class ChatService {
         }
         try {
             long t0 = System.nanoTime();
-            String reescrita = queryRewriter.reescribir(historial, pregunta);
+            String reescrita = queryRewriter.rewrite(historial, pregunta);
             long msReescritura = (System.nanoTime() - t0) / 1_000_000;
             if (reescrita == null || reescrita.isBlank()) {
                 log.debug("[{}] reescritura vacía ({} ms), se usa la pregunta original", username, msReescritura);

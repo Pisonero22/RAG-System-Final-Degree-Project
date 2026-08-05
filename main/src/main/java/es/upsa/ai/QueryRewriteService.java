@@ -66,6 +66,6 @@ public interface QueryRewriteService {
         (hablando del manual de misiones) "¿por qué se escondieron los manuscritos?" -> ¿por qué se escondieron los manuscritos?
         (hablando del desembarco final) "¿y cuánto puede durar?" -> cuánto puede durar el desembarco final en las estaciones de cuarentena
         """)
-    String reescribir(String historial, String mensaje);
+    String rewrite(String historial, String mensaje);
 }
 

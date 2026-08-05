@@ -39,7 +39,7 @@ public class RagRetriever {
 
     /** Candidatos que aporta cada búsqueda a la fusión. */
     @ConfigProperty(name = "rag.retriever.candidates", defaultValue = "10")
-    int knnCandidates;
+    int candidates;
 
     /** Fragmentos que acaban en el contexto del modelo. */
     @ConfigProperty(name = "rag.retriever.max-results", defaultValue = "3")
@@ -52,13 +52,13 @@ public class RagRetriever {
      * candidatos de cada rama, CONSULTA LÉXICA enviada y origin de cada
      * chunk — D (densa), L (léxica) o D+L (ambas).
      */
-    public String summarize(String pregunta) {
+    public String retrieveContext(String pregunta) {
         long t0 = System.nanoTime();
 
-        List<Chunk> densos = dense.search(pregunta, knnCandidates);
+        List<Chunk> densos = dense.search(pregunta, candidates);
 
         LexicalSearch.LexicalResult lexico = hybridEnabled
-                ? lexical.search(pregunta, knnCandidates)
+                ? lexical.search(pregunta, candidates)
                 : LexicalSearch.LexicalResult.vacio("(híbrida desactivada)");
         List<Chunk> lexicos = lexico.chunks();
 

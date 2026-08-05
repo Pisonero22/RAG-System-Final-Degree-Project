@@ -34,7 +34,7 @@ public class RrfFusion {
 
     /** Peso de la lista densa en la suma RRF. Ver el javadoc de pesoLexico: ambos van a 1.0. */
     @ConfigProperty(name = "rag.fusion.dense-weight", defaultValue = "1.0")
-    double pesoDenso;
+    double denseWeight;
     /**
      * Ambas ramas pesan igual. Se probó un peso léxico menor (0,7), pensando en
      * las coincidencias casuales de las preguntas conversacionales, y resultó
@@ -47,7 +47,7 @@ public class RrfFusion {
      * entera.
      */
     @ConfigProperty(name = "rag.fusion.lexical-weight", defaultValue = "1.0")
-    double pesoLexico;
+    double lexicalWeight;
 
     /** Un chunk fusionado: con su origin ("D", "L" o "D+L") y su puntuación. */
     public record Result(Chunk chunk, String origin, double score) {}
@@ -57,8 +57,8 @@ public class RrfFusion {
         Map<String, Chunk> porTexto = new LinkedHashMap<>();
         Map<String, String> origen = new LinkedHashMap<>();
 
-        accumulate(densos, pesoDenso, "D", puntos, porTexto, origen);
-        accumulate(lexicos, pesoLexico, "L", puntos, porTexto, origen);
+        accumulate(densos, denseWeight, "D", puntos, porTexto, origen);
+        accumulate(lexicos, lexicalWeight, "L", puntos, porTexto, origen);
 
         return puntos.entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())

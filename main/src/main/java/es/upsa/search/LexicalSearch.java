@@ -25,7 +25,7 @@ public class LexicalSearch {
     private static final Pattern TERM = Pattern.compile("[\\p{L}\\p{N}]+");
 
     /** Campos que se piden a Redis: el text y todo lo necesario para la cita. */
-    private static final List<String> RETURNED_FIELD = List.of("scalar", "file", "page", "nombre", "file_name", "fila");
+    private static final List<String> RETURNED_FIELDS = List.of("scalar", "file", "page", "nombre", "file_name", "fila");
     /**
      * Palabras funcionales del español. RediSearch elimina automáticamente las
      * palabras vacías del INGLÉS: su lista por defecto no conoce "del", "los" ni
@@ -77,7 +77,7 @@ public class LexicalSearch {
         }
     }
     /** Una palabra de 4 letras o más. */
-    private static final Pattern SUSTANTIVO = Pattern.compile("\\p{L}{4,}");
+    private static final Pattern CONTENT_WORD = Pattern.compile("\\p{L}{4,}");
 
     /**
      * Sin al menos un término sustantivo, la query no puede ser una búsqueda
@@ -87,7 +87,7 @@ public class LexicalSearch {
      * aporta la búsqueda densa, que sí sabe interpretar la pregunta.
      */
     private static boolean hasContentWord(String consulta) {
-        return SUSTANTIVO.matcher(consulta).find();
+        return CONTENT_WORD.matcher(consulta).find();
     }
     /**
      * Fragmentos ordenados por relevancia BM25, junto con la query enviada.
@@ -104,7 +104,7 @@ public class LexicalSearch {
         }
         try {
             QueryArgs args = new QueryArgs().limit(0, limite);
-            RETURNED_FIELD.forEach(args::returnAttribute);
+            RETURNED_FIELDS.forEach(args::returnAttribute);
 
             SearchQueryResponse respuesta = redis.search().ftSearch(index, consulta, args);
 
@@ -166,7 +166,7 @@ public class LexicalSearch {
             return null;
         }
         Map<String, String> metadatos = new LinkedHashMap<>();
-        for (String campo : RETURNED_FIELD) {
+        for (String campo : RETURNED_FIELDS) {
             if (!"scalar".equals(campo)) {
                 String valor = property(doc, campo);
                 if (valor != null) {
