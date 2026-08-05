@@ -1,14 +1,14 @@
-package es.upsa.rag;
+package es.upsa.chat;
 
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
-import es.upsa.guardrail.PromptInjectionDetectionService;
-import es.upsa.ragconfiguration.QueryRewriteService;
-import es.upsa.ragconfiguration.RagAssistant;
+import es.upsa.ai.PromptInjectionDetectionService;
+import es.upsa.ai.QueryRewriteService;
+import es.upsa.ai.RagAssistant;
 import dev.langchain4j.data.message.UserMessage;
 
-import es.upsa.busqueda.RagRetriever;
-import es.upsa.store.RagChatMemoryStore;
+import es.upsa.search.RagRetriever;
+import es.upsa.memory.InMemoryChatMemoryStore;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.Config;
@@ -20,10 +20,10 @@ import java.text.Normalizer;
 import java.util.List;
 
 @ApplicationScoped
-public class RagChatService {
+public class ChatService {
 
-    private static final Logger log = LoggerFactory.getLogger(RagChatService.class);
-    private static final int MENSAJES_PARA_REESCRITURA = 6;
+    private static final Logger log = LoggerFactory.getLogger(ChatService.class);
+    private static final int HISTORY_MESSAGES = 6;
 
     @Inject
     RagAssistant assistant;
@@ -34,7 +34,7 @@ public class RagChatService {
     @Inject
     QueryRewriteService queryRewriter;
     @Inject
-    RagChatMemoryStore memoryStore;
+    InMemoryChatMemoryStore memoryStore;
 
     @Inject
     PromptInjectionDetectionService detector;
@@ -50,30 +50,30 @@ public class RagChatService {
             return "No he recibido ningún mensaje. Escribe algo y te respondo.";
         }
 
-        String slot = normalizarModelo(modelProvider);
-        String modeloReal = tagReal(slot);
+        String slot = normalizeSlot(modelProvider);
+        String modeloReal = resolveModelTag(slot);
         String pregunta = message.trim();
 
 
         // 0) GUARDRAIL EN LA PUERTA: antes de gastar el reescritor (un LLM) y la
         //    búsqueda vectorial en un mensaje que vamos a rechazar.
-        if (esInyeccion(username, pregunta)) {
+        if (isInyection(username, pregunta)) {
             log.info("[{}] mensaje bloqueado por el detector de prompt injection", username);
             return "Mensaje bloqueado: se ha detectado un posible intento de prompt injection.";
         }
 
 
         try {
-            // 1) Reescritura de la consulta con historial (solo para la BÚSQUEDA;
+            // 1) Reescritura de la query con historial (solo para la BÚSQUEDA;
             //    el modelo del chat recibe la pregunta original del usuario).
-            String consulta = consultaParaBusqueda(username, pregunta);
+            String consulta = buildSearchQuery(username, pregunta);
 
             // 2) Recuperación explícita del contexto (RAG).
-            String contexto = ragRetriever.buscarContexto(consulta);
+            String contexto = ragRetriever.summarize(consulta);
             // 3) Generación: el contexto viaja en el system message.
             long t0 = System.nanoTime();
             // El modelo recibe la pregunta ORIGINAL, pero la búsqueda pudo hacerse con
-            // una consulta reescrita. Si difieren, se le indica: sin esa pista, ante un
+            // una query reescrita. Si difieren, se le indica: sin esa pista, ante un
             // contexto que no encaja con su lectura de la pregunta aplica la regla 4
             // (ignorar el contexto y responder de memoria), y se pierde la recuperación.
             String interpretacion = consulta.equals(pregunta) ? ""
@@ -91,12 +91,12 @@ public class RagChatService {
             return "Ha ocurrido un error procesando tu mensaje. Inténtalo de nuevo.";
         }
     }
-    private boolean esInyeccion(String username, String pregunta) {
+    private boolean isInyection(String username, String pregunta) {
         long t0 = System.nanoTime();
         try {
             double score = detector.isInjection(pregunta);
             long ms = (System.nanoTime() - t0) / 1_000_000;
-            log.debug("[{}] guardrail ({} ms) score={} para \"{}\"", username, ms, score, pregunta);
+            log.debug("[{}] guardrail ({} ms) score={} para \"{}\"", username, ms, score, truncate(pregunta));
             return score > umbralInyeccion;
         } catch (Exception e) {
             log.warn("[{}] el detector de inyección falló ({} ms), se permite el mensaje: {}",
@@ -105,14 +105,14 @@ public class RagChatService {
         }
     }
 
-    private String tagReal(String slot) {
+    private String resolveModelTag(String slot) {
         String propiedad = "gpt".equals(slot)
                 ? "quarkus.langchain4j.openai.gpt.chat-model.model-name"
                 : "quarkus.langchain4j.ollama." + slot + ".chat-model.model-id";
         return config.getOptionalValue(propiedad, String.class).orElse("desconocido");
     }
 
-    private String normalizarModelo(String name) {
+    private String normalizeSlot(String name) {
         if (name == null || name.isBlank()) {
             return "llama";
         }
@@ -127,16 +127,16 @@ public class RagChatService {
     }
 
     /**
-     * Devuelve la consulta para la búsqueda vectorial. Si hay historial y la
+     * Devuelve la query para la búsqueda vectorial. Si hay historial y la
      * reescritura está activa, condensa la pregunta; ante CUALQUIER problema,
      * fallback a la pregunta original: esta etapa es una mejora, nunca un
      * punto de fallo.
      */
-    private String consultaParaBusqueda(String username, String pregunta) {
+    private String buildSearchQuery(String username, String pregunta) {
         if (!rewriteEnabled) {
             return pregunta;
         }
-        String historial = historialPlano(username);
+        String historial = flattenHistory(username);
         if (historial.isBlank()) {
             // Primera pregunta: no hay nada que condensar (y nos ahorramos la llamada).
             return pregunta;
@@ -150,54 +150,54 @@ public class RagChatService {
                 return pregunta;
             }
             reescrita = reescrita.strip();
-            // Debe devolver UNA consulta corta. Si se pone a conversar, no nos fiamos.
+            // Debe devolver UNA query corta. Si se pone a conversar, no nos fiamos.
             if (reescrita.contains("\n") || reescrita.length() > 300) {
                 log.debug("[{}] reescritura descartada ({} ms, formato inesperado)",
                         username, msReescritura);
                 return pregunta;
             }
             // Cambios solo cosméticos: se usa la pregunta ORIGINAL.
-            if (soloCambiaPuntuacion(reescrita, pregunta)) {
+            if (differsOnlyInPunctuation(reescrita, pregunta)) {
                 log.debug("[{}] reescritura cosmética descartada ({} ms): \"{}\"",
                         username, msReescritura, reescrita);
                 return pregunta;
             }
-            log.debug("[{}] consulta reescrita ({} ms): \"{}\" -> \"{}\"",
+            log.debug("[{}] query reescrita ({} ms): \"{}\" -> \"{}\"",
                     username, msReescritura, pregunta, reescrita);
 
             return reescrita;
         } catch (Exception e) {
-            log.warn("[{}] falló la reescritura de consulta, se usa la original: {}",
+            log.warn("[{}] falló la reescritura de query, se usa la original: {}",
                     username, e.getMessage());
             return pregunta;
         }
     }
 
     /**
-     * Últimos mensajes de la conversación en texto plano. Se filtra el
+     * Últimos mensajes de la conversación en text plano. Se filtra el
      * SystemMessage (contiene el contexto RAG del turno anterior, que aquí
      * solo metería ruido) y se recorta cada mensaje para que el prompt del
      * reescritor sea pequeño y rápido.
      */
-    private String historialPlano(String username) {
+    private String flattenHistory(String username) {
         List<ChatMessage> mensajes = memoryStore.getMessages(username);
         if (mensajes.isEmpty()) {
             return "";
         }
-        int desde = Math.max(0, mensajes.size() - MENSAJES_PARA_REESCRITURA);
+        int desde = Math.max(0, mensajes.size() - HISTORY_MESSAGES);
         StringBuilder sb = new StringBuilder();
         for (ChatMessage m : mensajes.subList(desde, mensajes.size())) {
             if (m instanceof UserMessage um) {
-                sb.append("Usuario: ").append(resumen(um.singleText())).append('\n');
+                sb.append("Usuario: ").append(truncate(um.singleText())).append('\n');
             } else if (m instanceof AiMessage am) {
-                sb.append("Asistente: ").append(resumen(am.text())).append('\n');
+                sb.append("Asistente: ").append(truncate(am.text())).append('\n');
             }
         }
         return sb.toString();
     }
 
     /** Aplana y recorta un mensaje para el prompt del reescritor. */
-    private static String resumen(String texto) {
+    private static String truncate(String texto) {
         if (texto == null) {
             return "";
         }
@@ -208,17 +208,17 @@ public class RagChatService {
      * ¿La reescritura solo cambia signos de puntuación, tildes o mayúsculas?
      *
      * Motivo medido: añadir un punto final a "Hola" desplaza su embedding lo
-     * justo para cruzar el umbral de similitud y recuperar 5 fragmentos de
+     * justo para cruzar el umbral de similitud y recuperar 5 chunks de
      * ruido (patentes, Plutón, perímetros de seguridad). Observado tres veces.
      * Como es un criterio exacto, se resuelve en código y no pidiéndoselo al
      * modelo en el prompt.
      */
-    private static boolean soloCambiaPuntuacion(String reescrita, String original) {
-        return esqueleto(reescrita).equals(esqueleto(original));
+    private static boolean differsOnlyInPunctuation(String reescrita, String original) {
+        return skeleton(reescrita).equals(skeleton(original));
     }
 
-    /** El texto reducido a letras y dígitos, sin tildes ni mayúsculas. */
-    private static String esqueleto(String texto) {
+    /** El text reducido a letras y dígitos, sin tildes ni mayúsculas. */
+    private static String skeleton(String texto) {
         return Normalizer.normalize(texto, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")               // fuera las tildes
                 .replaceAll("[^\\p{L}\\p{N}]", "")      // fuera signos y espacios

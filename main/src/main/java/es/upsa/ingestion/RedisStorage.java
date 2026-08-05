@@ -1,4 +1,4 @@
-package es.upsa.providers.storages;
+package es.upsa.ingestion;
 
 import jakarta.inject.Qualifier;
 

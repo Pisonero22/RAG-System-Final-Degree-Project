@@ -1,23 +1,14 @@
 package es.upsa.rest;
 
-import es.upsa.files.FileUploadService;
-import es.upsa.providers.storages.RedisStorage;
-import es.upsa.security.AdminEndpoint;
-import es.upsa.store.StorageProvider;
-import es.upsa.store.readerFiles.DocumentFromFileTxt;
+
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.Config;
-import org.jboss.resteasy.reactive.RestForm;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -25,65 +16,8 @@ import java.util.Map;
 @Path("/service")
 public class ChatResource {
 
-    private static final Logger log = LoggerFactory.getLogger(ChatResource.class);
-
-    @Inject
-    @RedisStorage
-    StorageProvider storage;
-
-    @Inject
-    FileUploadService fileUploadService;
     @Inject
     Config config;
-
-    @POST
-    @Path("/reset")
-    @AdminEndpoint
-    public Response resetRedis() throws IOException {
-        try {
-            storage.resetEmbeddingStore();
-            return Response.ok()
-                    .entity("Storage reiniciada y documentos reingestados con éxito")
-                    .build();
-        }catch (IllegalStateException e) {
-            return Response.status(Response.Status.CONFLICT).entity(e.getMessage()).build();
-        } catch (IOException e) {
-            log.error("Reset failed", e);
-            return Response.serverError().entity("Reset failed: " + e.getMessage()).build();
-        }
-    }
-
-    @POST
-    @Path("/upload")
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    @Produces(MediaType.TEXT_PLAIN)
-    @AdminEndpoint
-    public Response subirArchivo(@RestForm("file") InputStream archivo,
-                                 @RestForm("fileName") String nombreArchivo) throws IOException {
-
-
-        java.nio.file.Path destino;
-        try {
-            destino = fileUploadService.subirArchivo(archivo, nombreArchivo);
-        } catch (IllegalArgumentException e) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
-        } catch (IOException e) {
-            return Response.serverError().entity("Error al guardar el archivo: " + e.getMessage()).build();
-        }
-
-        try {
-            storage.ingestFile(destino);
-        } catch (Exception e) {
-            // El archivo YA está en disco: si no se puede ingestar, se retira para que
-            // no ensucie las ingestas completas posteriores.
-            Files.deleteIfExists(destino);
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("El archivo no se ha podido procesar y se ha descartado: " + e.getMessage())
-                    .build();
-        }
-        return Response.ok("Archivo guardado e ingerido: " + destino.getFileName()).build();
-
-    }
 
     /**
      * Modelos reales configurados en cada slot, para que la UI muestre
@@ -95,38 +29,23 @@ public class ChatResource {
     @GET
     @Path("/models")
     @Produces(MediaType.APPLICATION_JSON)
-    public Map<String, String> modelosDisponibles() {
+    public Map<String, String> availableModels() {
         Map<String, String> modelos = new LinkedHashMap<>();
-        modelos.put("llama", modeloOllama("llama"));
+        modelos.put("llama", ollamaModel("llama"));
         modelos.put("gpt", config.getOptionalValue(
                         "quarkus.langchain4j.openai.gpt.chat-model.model-name", String.class)
                 .orElse("desconocido"));
-        modelos.put("qwen", modeloOllama("qwen"));
-        modelos.put("gpto", modeloOllama("gpto"));
-        modelos.put("deepseek", modeloOllama("deepseek"));
-        modelos.put("mistral", modeloOllama("mistral"));
+        modelos.put("qwen", ollamaModel("qwen"));
+        modelos.put("gpto", ollamaModel("gpto"));
+        modelos.put("deepseek", ollamaModel("deepseek"));
+        modelos.put("mistral", ollamaModel("mistral"));
         return modelos;
     }
 
-    private String modeloOllama(String slot) {
+    private String ollamaModel(String slot) {
         return config.getOptionalValue(
                         "quarkus.langchain4j.ollama." + slot + ".chat-model.model-id", String.class)
                 .orElse("desconocido");
     }
 
-    @POST
-    @Path("/clean-uploads")
-    @Produces(MediaType.TEXT_PLAIN)
-    @AdminEndpoint
-    public Response limpiarSubidas() throws IOException {
-        try{
-        int borrados = fileUploadService.borrarSubidas();   // vacía los tres uploads/
-        storage.resetEmbeddingStore();                      // reconstruye desde el corpus versionado
-        return Response.ok("Subidas eliminadas: " + borrados + ". Índice reconstruido desde el corpus base.").build();
-        } catch (IllegalArgumentException e) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
-        } catch (IOException e) {
-            return Response.serverError().entity("Error al limpiar las subidas: " + e.getMessage()).build();
-        }
-    }
 }

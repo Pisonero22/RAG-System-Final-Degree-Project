@@ -1,8 +1,6 @@
-package es.upsa.websockets;
+package es.upsa.chat;
 
-import es.upsa.rag.RagChatService;
-import es.upsa.store.RagChatMemoryStore;
-import es.upsa.store.readerFiles.DocumentFromFileCSV;
+import es.upsa.memory.InMemoryChatMemoryStore;
 import io.quarkus.websockets.next.*;
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
@@ -14,19 +12,20 @@ public class ChatWebSocket {
     private static final Logger log = LoggerFactory.getLogger(ChatWebSocket.class);
 
     @Inject
-    RagChatService ragChatService;
+    ChatService chatService;
     @Inject
-    RagChatMemoryStore memoryStore;
+    InMemoryChatMemoryStore memoryStore;
     @Inject
     WebSocketConnection connection;
 
     public enum MessageType {USER_JOINED, USER_LEFT, CHAT_MESSAGE}
     public record ChatMessage(MessageType type, String from, String message, String llm, boolean fromAssistant) {}
+
     @OnError
-    public void onError(Throwable t) {
+    public ChatMessage onError(Throwable t) {
         log.error("WebSocket error for user '{}'", connection.pathParam("username"), t);
-        connection.sendTextAndAwait(new ChatMessage(MessageType.CHAT_MESSAGE, "system",
-                "Ha ocurrido un error. Vuelve a intentarlo.", null, true));
+        return new ChatMessage(MessageType.CHAT_MESSAGE, "system",
+                "Ha ocurrido un error. Vuelve a intentarlo.", null, true);
     }
 
     @OnOpen
@@ -51,7 +50,7 @@ public class ChatWebSocket {
         // Eco del mensaje del usuario SOLO a su propia conexión.
         connection.sendTextAndAwait(new ChatMessage(MessageType.CHAT_MESSAGE, username, message.message, message.llm,false));
 
-        String respuesta = ragChatService.chat(username, message.message, message.llm);
+        String respuesta = chatService.chat(username, message.message, message.llm);
         connection.sendTextAndAwait(new ChatMessage(MessageType.CHAT_MESSAGE, message.llm, respuesta, message.llm,true));
     }
 }

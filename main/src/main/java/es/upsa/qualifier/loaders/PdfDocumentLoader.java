@@ -1,11 +1,10 @@
-package es.upsa.store.readerFiles;
+package es.upsa.qualifier.loaders;
 
 
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
 
 
-import es.upsa.busqueda.Fuentes;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,12 +22,12 @@ import org.slf4j.LoggerFactory;
 
 
 @ApplicationScoped
-public class DocumentFromFilePDF implements DocumentLoaderService {
+public class PdfDocumentLoader implements DocumentLoader {
 
-    private static final Logger log = LoggerFactory.getLogger(DocumentFromFilePDF.class);
+    private static final Logger log = LoggerFactory.getLogger(PdfDocumentLoader.class);
 
 
-    private static final int PUENTE_CHARS = 300;
+    private static final int BRIDGE_CHARS = 300;
 
     @Override
     public List<Document> load(Path folder) throws IOException {
@@ -60,7 +59,7 @@ public class DocumentFromFilePDF implements DocumentLoaderService {
     private List<Document> loadPdf(Path pdfPath) throws IOException {
         // Sin el prefijo UUID de la subida: "a8a7c73a-..._PlayStation_5.pdf" -> "PlayStation_5.pdf"
         String nombreLimpio = pdfPath.getFileName().toString().replaceFirst("^[0-9a-fA-F-]{36}_", "");
-        // ---- FASE 1: extraer el texto de las páginas que tienen texto ----
+        // ---- FASE 1: extraer el text de las páginas que tienen text ----
         List<Integer> numeros = new ArrayList<>();   // número REAL de página (para la cita)
         List<String>  textos  = new ArrayList<>();
 
@@ -74,17 +73,17 @@ public class DocumentFromFilePDF implements DocumentLoaderService {
                 String text = stripper.getText(pdf);
 
                 if (text == null || text.isBlank()) {
-                    log.warn("Página {} de '{}' sin texto; se omite.", pageNum, nombreLimpio);
+                    log.warn("Página {} de '{}' sin text; se omite.", pageNum, nombreLimpio);
                     continue;
                 }
                 numeros.add(pageNum);
-                textos.add(Fuentes.separarSaltos(text.replaceAll("[^\\S\\n]+", " ").trim()));
+                textos.add((text.replaceAll("[^\\S\\n]+", " ").trim()));
 
             }
         }
         List<Document> segments = new ArrayList<>();
         for (int i = 0; i < textos.size(); i++) {
-            String puente = (i == 0) ? "" : cola(textos.get(i - 1), PUENTE_CHARS);
+            String puente = (i == 0) ? "" : tail(textos.get(i - 1), BRIDGE_CHARS);
             String contenido = puente.isEmpty() ? textos.get(i)
                     : puente + " \n" + textos.get(i);
 
@@ -95,14 +94,14 @@ public class DocumentFromFilePDF implements DocumentLoaderService {
         }
 
         if (segments.isEmpty()) {
-            log.warn("El PDF '{}' no aportó ninguna página con texto.", nombreLimpio);
+            log.warn("El PDF '{}' no aportó ninguna página con text.", nombreLimpio);
         }
         return segments;
 
     }
 
     /** Últimos maxChars caracteres, sin empezar a mitad de palabra. */
-    private static String cola(String texto, int maxChars) {
+    private static String tail(String texto, int maxChars) {
         if (texto.length() <= maxChars) {
             return texto;
         }

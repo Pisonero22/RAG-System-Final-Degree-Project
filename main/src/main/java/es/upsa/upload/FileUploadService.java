@@ -1,4 +1,4 @@
-package es.upsa.files;
+package es.upsa.upload;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -27,8 +27,8 @@ public class FileUploadService {
     Path pdfDir;
 
 
-    public Path subirArchivo(@RestForm("file") InputStream contenido,
-                                 @RestForm("fileName") String nombreArchivo) throws IOException {
+    public Path store(@RestForm("file") InputStream contenido,
+                      @RestForm("fileName") String nombreArchivo) throws IOException {
 
         if (contenido == null || nombreArchivo == null) {
             throw new IllegalArgumentException("Faltan datos");
@@ -73,7 +73,7 @@ public class FileUploadService {
     private String sanitizeFileName(String nombreArchivo) {
         // Se queda solo con el nombre base, ignorando cualquier ruta que venga incluida
         String base = Paths.get(nombreArchivo).getFileName().toString();
-        // Solo permite alfanuméricos, puntos, guiones y guion bajo
+        // Solo permite alfanuméricos, score, guiones y guion bajo
         String limpio = base.replaceAll("[^a-zA-Z0-9._-]", "_");
         if (limpio.isBlank() || limpio.equals(".") || limpio.equals("..")) {
             throw new IllegalArgumentException("Nombre de fichero no válido");
@@ -93,7 +93,7 @@ public class FileUploadService {
         int punto = nombreArchivo.lastIndexOf('.');
         return (punto > 0) ? nombreArchivo.substring(punto + 1) : "";
     }
-    public int borrarSubidas() throws IOException {
+    public int deleteUploads() throws IOException {
         int total = 0;
         for (Path dir : List.of(txtDir, csvDir, pdfDir)) {
             Path uploads = dir.resolve("uploads");

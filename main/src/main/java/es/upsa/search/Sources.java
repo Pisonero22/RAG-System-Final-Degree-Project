@@ -1,9 +1,9 @@
-package es.upsa.busqueda;
+package es.upsa.search;
 
 import java.util.Map;
 
 /**
- * Formatea la procedencia de un fragmento a partir de sus metadatos.
+ * Formatea la procedencia de un chunk a partir de sus metadatos.
  *
  * Sin estado y sin dependencias, así que no es un bean CDI: es una función.
  * La usan las dos búsquedas, de modo que un PDF se cita igual venga de donde
@@ -13,11 +13,11 @@ import java.util.Map;
  * de langchain4j (Metadata.toMap(), con valores tipados) y de RediSearch
  * (campos devueltos por FT.SEARCH, siempre cadenas).
  */
-public final class Fuentes {
+public final class Sources {
 
-    private Fuentes() {}   // clase de utilidad: no se instancia
+    private Sources() {}   // clase de utilidad: no se instancia
 
-    public static String formatear(Map<String, ?> metadata) {
+    public static String format(Map<String, ?> metadata) {
         if (metadata.containsKey("file")) {                       // PDF
             Object page = metadata.get("page");
             return cleanName(metadata.get("file"))
@@ -32,7 +32,7 @@ public final class Fuentes {
             return cleanName(metadata.get("nombre"))
                     + (fila == null ? "" : " (fila " + number(fila) + ")");
         }
-        return "fuente desconocida";
+        return "source desconocida";
     }
     /**
      * Rodea los saltos de línea con espacios.
@@ -47,7 +47,7 @@ public final class Fuentes {
      * respetar los límites de párrafo; solo se separan de las palabras vecinas.
      * La búsqueda densa no se ve afectada por este problema ni por su arreglo.
      */
-    public static String separarSaltos(String text) {
+    public static String normalizeLineBreaks(String text) {
         return text.replaceAll("[ \\t]*\\r?\\n[ \\t]*", " \n ");
     }
     /** "bd49ab9c-..._Productos.csv" -> "Productos.csv" (prefijo UUID de las subidas). */

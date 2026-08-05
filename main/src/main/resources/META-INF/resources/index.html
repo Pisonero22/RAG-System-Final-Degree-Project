@@ -175,8 +175,11 @@
         cargarModelos();
 
         $("#reset").click(() => {
+            if (!confirm("Se reconstruirá el índice desde el corpus versionado. Tarda unos 40 segundos. ¿Continuar?")) {
+                return;
+            }
+            const $btn = $("#reset").prop("disabled", true);
 
-            const $btn = $("#clean-uploads").prop("disabled", true);
             appendSystemMessage("Limpiando subidas y reconstruyendo el índice…");
 
 
@@ -187,12 +190,14 @@
                 dataType: "text",
             success: data => {
                     $btn.prop("disabled", false);
-                    setTimeout(() => location.reload(), 250);
                     appendSystemMessage("Reset completado: " + data);
                 },
                 error: (xhr, status, error) => {
                     $btn.prop("disabled", false);
                     appendSystemMessage("Error en el reset: " + error);
+                    appendSystemMessage(xhr.status === 409
+                        ? "Ya hay un reindexado en curso. Espera a que termine."
+                        : "Error en el reset: " + (xhr.responseText || xhr.statusText));
                 }
             });
         });
@@ -201,13 +206,21 @@
             if (!confirm("Se borrarán todos los archivos subidos y se reconstruirá el índice con el corpus base. ¿Continuar?")) {
                 return;
             }
+            const $btn = $("#clean-uploads").prop("disabled", true);
+            appendSystemMessage("Limpiando subidas y reconstruyendo el índice…");
             $.ajax({
                 url: "/service/clean-uploads",
                 type: "POST",
                 dataType: "text",
                 headers: { "X-API-KEY": getAdminKey() },
-                success: data => appendSystemMessage(data),
-                error: (xhr, status, error) => appendSystemMessage("Error al limpiar subidas: " + error)
+                success: data => {
+                    $btn.prop("disabled", false);
+                    appendSystemMessage(data);
+                },
+                error: xhr => {
+                    $btn.prop("disabled", false);
+                    appendSystemMessage(xhr.responseText || ("Error al limpiar subidas: " + xhr.statusText));
+                }
             });
         });
 
@@ -314,7 +327,7 @@
                     appendSystemMessage(`Conectado como ${chatMessage.from}`);
                     break;
                 case "CHAT_MESSAGE":
-                    const esRespuestaIA = chatMessage.from === chatMessage.llm;
+                    const esRespuestaIA = chatMessage.fromAssistant === true;
                     if (esRespuestaIA) {
                         quitarGenerando()
                     }

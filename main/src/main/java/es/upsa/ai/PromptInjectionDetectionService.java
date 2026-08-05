@@ -1,4 +1,4 @@
-package es.upsa.guardrail;
+package es.upsa.ai;
 
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
@@ -46,3 +46,4 @@ public interface PromptInjectionDetectionService {
     """)
     double isInjection(String userMessage);
 }
+

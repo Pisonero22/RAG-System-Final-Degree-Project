@@ -1,4 +1,4 @@
-package es.upsa.ragconfiguration;
+package es.upsa.ai;
 
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
@@ -6,7 +6,7 @@ import io.quarkiverse.langchain4j.RegisterAiService;
 import jakarta.enterprise.context.ApplicationScoped;
 
 /**
- * Reescritura de consulta con historial ("query rewriting" / condensación).
+ * Reescritura de query con historial ("query rewriting" / condensación).
  * Convierte seguimientos ("¿y cuánto cuesta?") en consultas autocontenidas
  * ("precio de la PlayStation 5") ANTES de la búsqueda vectorial.
  * Sin memoria y con el modelo por defecto (temp 0.0), igual que el detector.
@@ -68,3 +68,4 @@ public interface QueryRewriteService {
         """)
     String reescribir(String historial, String mensaje);
 }
+

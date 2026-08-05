@@ -1,4 +1,4 @@
-package es.upsa.store.readerFiles;
+package es.upsa.qualifier.loaders;
 
 
 import dev.langchain4j.data.document.Document;
@@ -21,9 +21,9 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 @ApplicationScoped
-public class DocumentFromFileCSV implements DocumentLoaderService {
+public class CsvDocumentLoader implements DocumentLoader {
 
-    private static final Logger log = LoggerFactory.getLogger(DocumentFromFileCSV.class);
+    private static final Logger log = LoggerFactory.getLogger(CsvDocumentLoader.class);
 
     @Override
     public List<Document> load(Path folder) throws IOException {
@@ -98,3 +98,4 @@ public class DocumentFromFileCSV implements DocumentLoaderService {
         return documents;
     }
 }
+
