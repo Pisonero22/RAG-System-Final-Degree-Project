@@ -17,7 +17,7 @@ target/
 
 # macOS
 .DS_Store
-# Datos de Redis (bind mount del docker-compose): se regeneran con /service/ingest
+# Datos de Redis (bind mount del docker-compose): se regeneran con /service/admin/ingest
 redis-data/
 
 
