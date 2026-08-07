@@ -1,0 +1,26 @@
+Item_ID,Product_Name,Category,Unit_Price_EUR,Stock_Units,Warehouse_Code,Last_Audit_Date
+SKU-2041,Thermal Probe Calibrator,Instruments,1289.90,7,WH-NORTH,2026-03-14
+SKU-2042,Thermal Probe Sensor,Instruments,214.55,63,WH-NORTH,2026-03-14
+SKU-2043,Thermal Probe Housing,Instruments,88.20,140,WH-NORTH,2026-03-14
+SKU-2107,Industrial Dehumidifier,Climate,742.00,12,WH-SOUTH,2026-02-28
+SKU-2108,Portable Air Scrubber,Climate,1130.45,4,WH-SOUTH,2026-02-28
+SKU-2210,Cold Chain Data Logger,Logistics,96.75,310,WH-EAST,2026-04-02
+SKU-2211,Insulated Pallet Cover,Logistics,34.10,880,WH-EAST,2026-04-02
+SKU-2212,Reefer Container Seal,Logistics,3.95,12400,WH-EAST,2026-04-02
+SKU-2340,Hydraulic Pallet Jack,Handling,489.00,26,WH-WEST,2026-01-19
+SKU-2341,Electric Forklift Battery,Handling,2870.00,9,WH-WEST,2026-01-19
+SKU-2342,Forklift Safety Harness,Handling,127.30,54,WH-WEST,2026-01-19
+SKU-2455,Barcode Scanner Gun,Electronics,318.99,71,WH-NORTH,2026-03-14
+SKU-2456,Label Printer Ribbon,Electronics,12.40,2600,WH-NORTH,2026-03-14
+SKU-2457,Rugged Warehouse Tablet,Electronics,899.00,18,WH-NORTH,2026-03-14
+SKU-2510,Emergency Eyewash Station,Safety,406.60,15,WH-SOUTH,2026-02-28
+SKU-2511,Chemical Spill Kit,Safety,158.25,42,WH-SOUTH,2026-02-28
+SKU-2512,High Visibility Vest,Safety,9.85,1750,WH-SOUTH,2026-02-28
+SKU-2603,Stainless Steel Shelving Unit,Storage,655.00,33,WH-EAST,2026-04-02
+SKU-2604,Anti Static Storage Bin,Storage,22.70,940,WH-EAST,2026-04-02
+SKU-2605,Heavy Duty Racking Beam,Storage,74.50,510,WH-EAST,2026-04-02
+SKU-2718,Nitrogen Purge Regulator,Gases,1045.00,6,WH-WEST,2026-01-19
+SKU-2719,Argon Cylinder Trolley,Gases,286.40,21,WH-WEST,2026-01-19
+SKU-2820,Ultrasonic Leak Detector,Instruments,1975.00,3,WH-NORTH,2026-03-14
+SKU-2821,Infrared Thermal Camera,Instruments,3420.00,2,WH-NORTH,2026-03-14
+SKU-2930,Dock Leveller Hydraulic Seal,Handling,512.80,17,WH-WEST,2026-01-19

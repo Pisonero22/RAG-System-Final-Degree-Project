@@ -64,14 +64,14 @@ public class DenseSearch {
                 embeddingModelId, dimension, minScore);
     }
 
-    /** Fragmentos ordenados por similitud, como máximo 'limite'. */
-    public List<Chunk> search(String pregunta, int limite) {
-        if (pregunta == null || pregunta.isBlank()) {
+    /** Fragmentos ordenados por similitud, como máximo 'limit'. */
+    public List<Chunk> search(String question, int limit) {
+        if (question == null || question.isBlank()) {
             return List.of();       // Query.from("") lanza excepción
         }
-        List<Content> contenidos = retriever.retrieve(Query.from(pregunta));
-        return contenidos.stream()
-                .limit(limite)
+        List<Content> results = retriever.retrieve(Query.from(question));
+        return results.stream()
+                .limit(limit)
                 .map(c -> new Chunk(
                         c.textSegment().text(),
                         Sources.format(c.textSegment().metadata().toMap())))

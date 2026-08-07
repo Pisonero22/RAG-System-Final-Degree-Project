@@ -53,30 +53,30 @@ public class AdminResource {
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.TEXT_PLAIN)
-    public Response upload(@RestForm("file") InputStream archivo,
-                           @RestForm("fileName") String nombreArchivo) throws IOException {
+    public Response upload(@RestForm("file") InputStream fileStream,
+                           @RestForm("fileName") String fileName) throws IOException {
 
 
-        java.nio.file.Path destino;
+        java.nio.file.Path storedFile;
         try {
-            destino = fileUploadService.store(archivo, nombreArchivo);
+            storedFile = fileUploadService.store(fileStream, fileName);
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
         } catch (IOException e) {
-            return Response.serverError().entity("Error al guardar el archivo: " + e.getMessage()).build();
+            return Response.serverError().entity("Error al guardar el fileStream: " + e.getMessage()).build();
         }
 
         try {
-            storage.ingestSingleFile(destino);
+            storage.ingestSingleFile(storedFile);
         } catch (Exception e) {
-            // El archivo YA está en disco: si no se puede ingestar, se retira para que
+            // El fileStream YA está en disco: si no se puede ingestar, se retira para que
             // no ensucie las ingestas completas posteriores.
-            Files.deleteIfExists(destino);
+            Files.deleteIfExists(storedFile);
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("El archivo no se ha podido procesar y se ha descartado: " + e.getMessage())
+                    .entity("El fileStream no se ha podido procesar y se ha descartado: " + e.getMessage())
                     .build();
         }
-        return Response.ok("Archivo guardado e ingerido: " + destino.getFileName()).build();
+        return Response.ok("Archivo guardado e ingerido: " + storedFile.getFileName()).build();
 
     }
 
@@ -85,9 +85,9 @@ public class AdminResource {
     @Path("/clean-uploads")
     @Produces(MediaType.TEXT_PLAIN)
     public Response cleanUploads() throws IOException {
-        int borrados;
+        int deleted;
         try {
-            borrados = fileUploadService.deleteUploads();
+            deleted = fileUploadService.deleteUploads();
         } catch (IOException e) {
             log.error("Failed to delete uploads", e);
             return Response.serverError().entity("Error al borrar las subidas: " + e.getMessage()).build();
@@ -98,15 +98,15 @@ public class AdminResource {
         } catch (IllegalStateException e) {
             // Los ficheros YA se han borrado: hay que avisar de que el índice quedó sin reconstruir.
             return Response.status(Response.Status.CONFLICT)
-                    .entity("Subidas eliminadas: " + borrados + ", pero hay un reindexado en curso "
+                    .entity("Subidas eliminadas: " + deleted + ", pero hay un reindexado en curso "
                             + "y el índice NO se ha reconstruido. Pulsa Reset cuando termine.")
                     .build();
         } catch (IOException e) {
             log.error("Reindex after cleaning uploads failed", e);
             return Response.serverError()
-                    .entity("Subidas eliminadas: " + borrados + ", pero el reindexado falló: " + e.getMessage())
+                    .entity("Subidas eliminadas: " + deleted + ", pero el reindexado falló: " + e.getMessage())
                     .build();
         }
-        return Response.ok("Subidas eliminadas: " + borrados + ". Índice reconstruido desde el corpus base.").build();
+        return Response.ok("Subidas eliminadas: " + deleted + ". Índice reconstruido desde el corpus base.").build();
     }
 }

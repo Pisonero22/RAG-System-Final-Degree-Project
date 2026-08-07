@@ -28,22 +28,22 @@ public final class Sources {
         }
 
         if (metadata.containsKey("nombre")) {                     // CSV
-            Object fila = metadata.get("fila");
+            Object row = metadata.get("fila");
             return cleanName(metadata.get("nombre"))
-                    + (fila == null ? "" : " (fila " + number(fila) + ")");
+                    + (row == null ? "" : " (fila " + number(row) + ")");
         }
         return "unknown source";
     }
 
     /** "bd49ab9c-..._Productos.csv" -> "Productos.csv" (prefijo UUID de las subidas). */
-    private static String cleanName(Object valor) {
-        return String.valueOf(valor).replaceFirst("^[0-9a-fA-F-]{36}_", "");
+    private static String cleanName(Object value) {
+        return String.valueOf(value).replaceFirst("^[0-9a-fA-F-]{36}_", "");
     }
 
     /** Los números pueden llegar como Double (16.0) desde langchain4j o como
      *  cadena ("16") desde RediSearch: en ambos casos se muestran sin decimales. */
-    private static String number(Object valor) {
-        return (valor instanceof Number n) ? String.valueOf(n.longValue()) : String.valueOf(valor);
+    private static String number(Object value) {
+        return (value instanceof Number n) ? String.valueOf(n.longValue()) : String.valueOf(value);
     }
 
 }

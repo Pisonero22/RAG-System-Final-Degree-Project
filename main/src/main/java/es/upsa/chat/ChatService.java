@@ -51,13 +51,13 @@ public class ChatService {
         }
 
         String slot = normalizeSlot(modelProvider);
-        String modeloReal = resolveModelTag(slot);
-        String pregunta = message.trim();
+        String modelTag = resolveModelTag(slot);
+        String question = message.trim();
 
 
         // 0) GUARDRAIL EN LA PUERTA: antes de gastar el reescritor (un LLM) y la
         //    búsqueda vectorial en un mensaje que vamos a rechazar.
-        if (isInjection(username, pregunta)) {
+        if (isInjection(username, question)) {
             log.info("[{}] mensaje bloqueado por el detector de prompt injection", username);
             return "Mensaje bloqueado: se ha detectado un posible intento de prompt injection.";
         }
@@ -65,38 +65,38 @@ public class ChatService {
 
         try {
             // 1) Reescritura de la query con historial (solo para la BÚSQUEDA;
-            //    el modelo del chat recibe la pregunta original del usuario).
-            String consulta = buildSearchQuery(username, pregunta);
+            //    el modelo del chat recibe la question original del usuario).
+            String query = buildSearchQuery(username, question);
 
-            // 2) Recuperación explícita del contexto (RAG).
-            String contexto = ragRetriever.retrieveContext(consulta);
-            // 3) Generación: el contexto viaja en el system message.
+            // 2) Recuperación explícita del context (RAG).
+            String context = ragRetriever.retrieveContext(query);
+            // 3) Generación: el context viaja en el system message.
             long t0 = System.nanoTime();
-            // El modelo recibe la pregunta ORIGINAL, pero la búsqueda pudo hacerse con
+            // El modelo recibe la question ORIGINAL, pero la búsqueda pudo hacerse con
             // una query reescrita. Si difieren, se le indica: sin esa pista, ante un
-            // contexto que no encaja con su lectura de la pregunta aplica la regla 4
-            // (ignorar el contexto y responder de memoria), y se pierde la recuperación.
-            String interpretacion = consulta.equals(pregunta) ? ""
-                    : "La búsqueda del contexto se ha realizado interpretando la pregunta como: \""
-                    + consulta + "\". Si el contexto encaja con esa interpretación, úsalo.";
+            // context que no encaja con su lectura de la question aplica la regla 4
+            // (ignorar el context y responder de memoria), y se pierde la recuperación.
+            String interpretation = query.equals(question) ? ""
+                    : "La búsqueda del context se ha realizado interpretando la question como: \""
+                    + query + "\". Si el context encaja con esa interpretación, úsalo.";
 
-            String respuesta = assistant.chat(slot, username,interpretacion, contexto, pregunta);
+            String answer = assistant.chat(slot, username,interpretation, context, question);
             long ms = (System.nanoTime() - t0) / 1_000_000;
             log.info("[{}] slot='{}' modelo='{}' respondió en {} ms",
-                    username, slot, modeloReal, ms);
-            return respuesta;
+                    username, slot, modelTag, ms);
+            return answer;
 
         } catch (Exception e) {
-            log.error("[{}] slot='{}' modelo='{}': error procesando mensaje", username, slot, modeloReal, e);
+            log.error("[{}] slot='{}' modelo='{}': error procesando mensaje", username, slot, modelTag, e);
             return "Ha ocurrido un error procesando tu mensaje. Inténtalo de nuevo.";
         }
     }
-    private boolean isInjection(String username, String pregunta) {
+    private boolean isInjection(String username, String question) {
         long t0 = System.nanoTime();
         try {
-            double score = detector.isInjection(pregunta);
+            double score = detector.isInjection(question);
             long ms = (System.nanoTime() - t0) / 1_000_000;
-            log.debug("[{}] guardrail ({} ms) score={} para \"{}\"", username, ms, score, truncate(pregunta));
+            log.debug("[{}] guardrail ({} ms) score={} para \"{}\"", username, ms, score, truncate(question));
             return score > injectionThreshold;
         } catch (Exception e) {
             log.warn("[{}] el detector de inyección falló ({} ms), se permite el mensaje: {}",
@@ -106,10 +106,10 @@ public class ChatService {
     }
 
     private String resolveModelTag(String slot) {
-        String propiedad = "gpt".equals(slot)
+        String propertyName = "gpt".equals(slot)
                 ? "quarkus.langchain4j.openai.gpt.chat-model.model-name"
                 : "quarkus.langchain4j.ollama." + slot + ".chat-model.model-id";
-        return config.getOptionalValue(propiedad, String.class).orElse("desconocido");
+        return config.getOptionalValue(propertyName, String.class).orElse("desconocido");
     }
 
     private String normalizeSlot(String name) {
@@ -128,48 +128,48 @@ public class ChatService {
 
     /**
      * Devuelve la query para la búsqueda vectorial. Si hay historial y la
-     * reescritura está activa, condensa la pregunta; ante CUALQUIER problema,
-     * fallback a la pregunta original: esta etapa es una mejora, nunca un
+     * reescritura está activa, condensa la question; ante CUALQUIER problema,
+     * fallback a la question original: esta etapa es una mejora, nunca un
      * punto de fallo.
      */
-    private String buildSearchQuery(String username, String pregunta) {
+    private String buildSearchQuery(String username, String question) {
         if (!rewriteEnabled) {
-            return pregunta;
+            return question;
         }
-        String historial = flattenHistory(username);
-        if (historial.isBlank()) {
-            // Primera pregunta: no hay nada que condensar (y nos ahorramos la llamada).
-            return pregunta;
+        String history = flattenHistory(username);
+        if (history.isBlank()) {
+            // Primera question: no hay nada que condensar (y nos ahorramos la llamada).
+            return question;
         }
         try {
             long t0 = System.nanoTime();
-            String reescrita = queryRewriter.rewrite(historial, pregunta);
-            long msReescritura = (System.nanoTime() - t0) / 1_000_000;
-            if (reescrita == null || reescrita.isBlank()) {
-                log.debug("[{}] reescritura vacía ({} ms), se usa la pregunta original", username, msReescritura);
-                return pregunta;
+            String rewritten = queryRewriter.rewrite(history, question);
+            long rewriteMs = (System.nanoTime() - t0) / 1_000_000;
+            if (rewritten == null || rewritten.isBlank()) {
+                log.debug("[{}] reescritura vacía ({} ms), se usa la question original", username, rewriteMs);
+                return question;
             }
-            reescrita = reescrita.strip();
+            rewritten = rewritten.strip();
             // Debe devolver UNA query corta. Si se pone a conversar, no nos fiamos.
-            if (reescrita.contains("\n") || reescrita.length() > 300) {
+            if (rewritten.contains("\n") || rewritten.length() > 300) {
                 log.debug("[{}] reescritura descartada ({} ms, formato inesperado)",
-                        username, msReescritura);
-                return pregunta;
+                        username, rewriteMs);
+                return question;
             }
-            // Cambios solo cosméticos: se usa la pregunta ORIGINAL.
-            if (differsOnlyInPunctuation(reescrita, pregunta)) {
+            // Cambios solo cosméticos: se usa la question ORIGINAL.
+            if (differsOnlyInPunctuation(rewritten, question)) {
                 log.debug("[{}] reescritura cosmética descartada ({} ms): \"{}\"",
-                        username, msReescritura, reescrita);
-                return pregunta;
+                        username, rewriteMs, rewritten);
+                return question;
             }
-            log.debug("[{}] query reescrita ({} ms): \"{}\" -> \"{}\"",
-                    username, msReescritura, pregunta, reescrita);
+            log.debug("[{}] query rewritten ({} ms): \"{}\" -> \"{}\"",
+                    username, rewriteMs, question, rewritten);
 
-            return reescrita;
+            return rewritten;
         } catch (Exception e) {
             log.warn("[{}] falló la reescritura de query, se usa la original: {}",
                     username, e.getMessage());
-            return pregunta;
+            return question;
         }
     }
 
@@ -180,13 +180,13 @@ public class ChatService {
      * reescritor sea pequeño y rápido.
      */
     private String flattenHistory(String username) {
-        List<ChatMessage> mensajes = memoryStore.getMessages(username);
-        if (mensajes.isEmpty()) {
+        List<ChatMessage> messages = memoryStore.getMessages(username);
+        if (messages.isEmpty()) {
             return "";
         }
-        int desde = Math.max(0, mensajes.size() - HISTORY_MESSAGES);
+        int from = Math.max(0, messages.size() - HISTORY_MESSAGES);
         StringBuilder sb = new StringBuilder();
-        for (ChatMessage m : mensajes.subList(desde, mensajes.size())) {
+        for (ChatMessage m : messages.subList(from, messages.size())) {
             if (m instanceof UserMessage um) {
                 sb.append("Usuario: ").append(truncate(um.singleText())).append('\n');
             } else if (m instanceof AiMessage am) {
@@ -197,12 +197,12 @@ public class ChatService {
     }
 
     /** Aplana y recorta un mensaje para el prompt del reescritor. */
-    private static String truncate(String texto) {
-        if (texto == null) {
+    private static String truncate(String text) {
+        if (text == null) {
             return "";
         }
-        String plano = texto.replaceAll("\\s+", " ").trim();
-        return plano.length() <= 250 ? plano : plano.substring(0, 250) + "...";
+        String flat = text.replaceAll("\\s+", " ").trim();
+        return flat.length() <= 250 ? flat : flat.substring(0, 250) + "...";
     }
     /**
      * ¿La reescritura solo cambia signos de puntuación, tildes o mayúsculas?
@@ -213,13 +213,13 @@ public class ChatService {
      * Como es un criterio exacto, se resuelve en código y no pidiéndoselo al
      * modelo en el prompt.
      */
-    private static boolean differsOnlyInPunctuation(String reescrita, String original) {
-        return skeleton(reescrita).equals(skeleton(original));
+    static boolean differsOnlyInPunctuation(String rewritten, String original) {
+        return skeleton(rewritten).equals(skeleton(original));
     }
 
     /** El text reducido a letras y dígitos, sin tildes ni mayúsculas. */
-    private static String skeleton(String texto) {
-        return Normalizer.normalize(texto, Normalizer.Form.NFD)
+    static String skeleton(String text) {
+        return Normalizer.normalize(text, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")               // fuera las tildes
                 .replaceAll("[^\\p{L}\\p{N}]", "")      // fuera signos y espacios
                 .toLowerCase();

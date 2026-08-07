@@ -35,20 +35,20 @@ public class PdfDocumentLoader implements DocumentLoader {
             log.warn("El directorio '{}' no existe; no hay PDFs que cargar.", folder);
             return List.of();
         }
-        List<Document> docs = new ArrayList<>();
+        List<Document> documents = new ArrayList<>();
         try (Stream<Path> paths = Files.walk(folder)) {
             paths.filter(Files::isRegularFile)
                     .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".pdf"))
                     .forEach(p -> {
                         try {
-                            docs.addAll(loadPdf(p));
+                            documents.addAll(loadPdf(p));
                         } catch (Exception e) {
                             log.warn("PDF '{}' ilegible; se OMITE de la ingesta: {}",
                                     p.getFileName(), e.toString());
                         }
                     });
         }
-        return docs;
+        return documents;
     }
 
     @Override
@@ -58,10 +58,10 @@ public class PdfDocumentLoader implements DocumentLoader {
 
     private List<Document> loadPdf(Path pdfPath) throws IOException {
         // Sin el prefijo UUID de la subida: "a8a7c73a-..._PlayStation_5.pdf" -> "PlayStation_5.pdf"
-        String nombreLimpio = pdfPath.getFileName().toString().replaceFirst("^[0-9a-fA-F-]{36}_", "");
+        String cleanName = pdfPath.getFileName().toString().replaceFirst("^[0-9a-fA-F-]{36}_", "");
         // ---- FASE 1: extraer el text de las páginas que tienen text ----
-        List<Integer> numeros = new ArrayList<>();   // número REAL de página (para la cita)
-        List<String>  textos  = new ArrayList<>();
+        List<Integer> pageNumbers = new ArrayList<>();   // número REAL de página (para la cita)
+        List<String>  pageTexts  = new ArrayList<>();
 
         try (PDDocument pdf = PDDocument.load(pdfPath.toFile())) {
             PDFTextStripper stripper = new PDFTextStripper();
@@ -73,40 +73,40 @@ public class PdfDocumentLoader implements DocumentLoader {
                 String text = stripper.getText(pdf);
 
                 if (text == null || text.isBlank()) {
-                    log.warn("Página {} de '{}' sin text; se omite.", pageNum, nombreLimpio);
+                    log.warn("Página {} de '{}' sin text; se omite.", pageNum, cleanName);
                     continue;
                 }
-                numeros.add(pageNum);
-                textos.add((text.replaceAll("[^\\S\\n]+", " ").trim()));
+                pageNumbers.add(pageNum);
+                pageTexts.add((text.replaceAll("[^\\S\\n]+", " ").trim()));
 
             }
         }
         List<Document> segments = new ArrayList<>();
-        for (int i = 0; i < textos.size(); i++) {
-            String puente = (i == 0) ? "" : tail(textos.get(i - 1), BRIDGE_CHARS);
-            String contenido = puente.isEmpty() ? textos.get(i)
-                    : puente + " \n" + textos.get(i);
+        for (int i = 0; i < pageTexts.size(); i++) {
+            String bridge = (i == 0) ? "" : tail(pageTexts.get(i - 1), BRIDGE_CHARS);
+            String content = bridge.isEmpty() ? pageTexts.get(i)
+                    : bridge + " \n" + pageTexts.get(i);
 
-            Map<String, Object> meta = new LinkedHashMap<>();
-            meta.put("file", nombreLimpio);
-            meta.put("page", numeros.get(i));
-            segments.add(Document.from(contenido, Metadata.from(meta)));
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("file", cleanName);
+            metadata.put("page", pageNumbers.get(i));
+            segments.add(Document.from(content, Metadata.from(metadata)));
         }
 
         if (segments.isEmpty()) {
-            log.warn("El PDF '{}' no aportó ninguna página con text.", nombreLimpio);
+            log.warn("El PDF '{}' no aportó ninguna página con text.", cleanName);
         }
         return segments;
 
     }
 
     /** Últimos maxChars caracteres, sin empezar a mitad de palabra. */
-    private static String tail(String texto, int maxChars) {
-        if (texto.length() <= maxChars) {
-            return texto;
+    private static String tail(String text, int maxChars) {
+        if (text.length() <= maxChars) {
+            return text;
         }
-        String recorte = texto.substring(texto.length() - maxChars);
-        int primerEspacio = recorte.indexOf(' ');
-        return (primerEspacio >= 0) ? recorte.substring(primerEspacio + 1) : recorte;
+        String cut = text.substring(text.length() - maxChars);
+        int firstSpace = cut.indexOf(' ');
+        return (firstSpace >= 0) ? cut.substring(firstSpace + 1) : cut;
     }
 }

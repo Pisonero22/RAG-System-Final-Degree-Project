@@ -109,22 +109,22 @@ public class RedisDocumentStore implements DocumentStore {
 
     @Override
     public void ingestSingleFile(Path file) throws IOException {
-        String nombre = file.getFileName().toString().toLowerCase();
-        boolean esCsv = nombre.endsWith(".csv");
+        String fileName = file.getFileName().toString().toLowerCase();
+        boolean isCsv = fileName.endsWith(".csv");
 
-        List<Document> docs;
-        if (esCsv)                        docs = csvLoader.loadFile(file);
-        else if (nombre.endsWith(".pdf")) docs = pdfLoader.loadFile(file);
-        else if (nombre.endsWith(".txt")) docs = txtLoader.loadFile(file);
+        List<Document> documents;
+        if (isCsv)                        documents = csvLoader.loadFile(file);
+        else if (fileName.endsWith(".pdf")) documents = pdfLoader.loadFile(file);
+        else if (fileName.endsWith(".txt")) documents = txtLoader.loadFile(file);
         else throw new IllegalArgumentException("Extensión no soportada: " + file);
 
         var builder = ingestor();
-        if (!esCsv) {
+        if (!isCsv) {
             builder.documentSplitter(recursive(512, 128));   // CSV: 1 fila = 1 embedding
         }
-        builder.build().ingest(docs);
+        builder.build().ingest(documents);
 
-        log.info("Ingesta incremental de '{}': {} documentos", file.getFileName(), docs.size());
+        log.info("Ingesta incremental de '{}': {} documentos", file.getFileName(), documents.size());
     }
 
     private void deleteAllEmbeddings() {
@@ -139,11 +139,11 @@ public class RedisDocumentStore implements DocumentStore {
     }
 
     private Corpus loadCorpus() throws IOException {
-        List<Document> filas = csvLoader.load(csvFiles);
-        List<Document> prosa = new ArrayList<>();
-        prosa.addAll(txtLoader.load(txtFile));
-        prosa.addAll(pdfLoader.load(pdfFiles));
-        return new Corpus(filas, prosa);
+        List<Document> rows = csvLoader.load(csvFiles);
+        List<Document> prose = new ArrayList<>();
+        prose.addAll(txtLoader.load(txtFile));
+        prose.addAll(pdfLoader.load(pdfFiles));
+        return new Corpus(rows, prose);
     }
 
     private void index(Corpus corpus) {

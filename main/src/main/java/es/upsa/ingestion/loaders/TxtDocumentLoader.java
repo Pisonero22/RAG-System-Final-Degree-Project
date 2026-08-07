@@ -32,8 +32,8 @@ public class TxtDocumentLoader implements DocumentLoader {
             log.warn("No se puede leer el fichero o directorio: '{}'", filePath);
             return List.of();
         }
-        PathMatcher soloTxt = FileSystems.getDefault().getPathMatcher("glob:**.txt");
-        List<Document> documents = loadDocumentsRecursively(filePath, soloTxt, new TextDocumentParser());
+        PathMatcher onlyTxt = FileSystems.getDefault().getPathMatcher("glob:**.txt");
+        List<Document> documents = loadDocumentsRecursively(filePath, onlyTxt, new TextDocumentParser());
 
         if (documents == null || documents.isEmpty()) {
             log.warn("No hay documentos de text en '{}'.", filePath);

@@ -52,29 +52,29 @@ public class RrfFusion {
     /** Un chunk fusionado: con su origin ("D", "L" o "D+L") y su puntuación. */
     public record Result(Chunk chunk, String origin, double score) {}
 
-    public List<Result> fuse(List<Chunk> densos, List<Chunk> lexicos, int limite) {
-        Map<String, Double> puntos = new LinkedHashMap<>();
-        Map<String, Chunk> porTexto = new LinkedHashMap<>();
-        Map<String, String> origen = new LinkedHashMap<>();
+    public List<Result> fuse(List<Chunk> denseChunks, List<Chunk> lexicalChunks, int limit) {
+        Map<String, Double> scores = new LinkedHashMap<>();
+        Map<String, Chunk> byTexts = new LinkedHashMap<>();
+        Map<String, String> origin = new LinkedHashMap<>();
 
-        accumulate(densos, denseWeight, "D", puntos, porTexto, origen);
-        accumulate(lexicos, lexicalWeight, "L", puntos, porTexto, origen);
+        accumulate(denseChunks, denseWeight, "D", scores, byTexts, origin);
+        accumulate(lexicalChunks, lexicalWeight, "L", scores, byTexts, origin);
 
-        return puntos.entrySet().stream()
+        return scores.entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
-                .limit(limite)
-                .map(e -> new Result(porTexto.get(e.getKey()), origen.get(e.getKey()), e.getValue()))
+                .limit(limit)
+                .map(e -> new Result(byTexts.get(e.getKey()), origin.get(e.getKey()), e.getValue()))
                 .toList();
     }
 
-    private void accumulate(List<Chunk> lista, double peso, String etiqueta,
-                            Map<String, Double> puntos, Map<String, Chunk> porTexto,
+    private void accumulate(List<Chunk> chunks, double weight, String label,
+                            Map<String, Double> puntos, Map<String, Chunk> byText,
                             Map<String, String> origen) {
-        for (int i = 0; i < lista.size(); i++) {
-            Chunk f = lista.get(i);
-            puntos.merge(f.text(), peso / (k + i + 1), Double::sum);
-            porTexto.putIfAbsent(f.text(), f);
-            origen.merge(f.text(), etiqueta, (ya, nuevo) -> ya + "+" + nuevo);
+        for (int i = 0; i < chunks.size(); i++) {
+            Chunk f = chunks.get(i);
+            puntos.merge(f.text(), weight / (k + i + 1), Double::sum);
+            byText.putIfAbsent(f.text(), f);
+            origen.merge(f.text(), label, (ya, nuevo) -> ya + "+" + nuevo);
         }
     }
 

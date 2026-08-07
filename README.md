@@ -55,6 +55,14 @@ flowchart LR
 ```
 
 
+## Running the project
+
+```bash
+./deploy.sh                       # pulls the Ollama models, starts Redis and runs the app in dev mode
+./mvnw quarkus:dev                # dev mode only (Redis must already be running)
+./mvnw package                    # builds target/quarkus-app/quarkus-run.jar
+```
+
 
 
 ## Author

@@ -47,51 +47,51 @@ public class RagRetriever {
 
     /**
      * Devuelve el contexto formateado (con su procedencia) listo para inyectar
-     * en el system message. Una sola entrada de log por pregunta, con todo lo
+     * en el system message. Una sola entrada de log por question, con todo lo
      * necesario para explicar el resultado: tiempo, modelo de embeddings,
      * candidatos de cada rama, CONSULTA LÉXICA enviada y origin de cada
      * chunk — D (densa), L (léxica) o D+L (ambas).
      */
-    public String retrieveContext(String pregunta) {
+    public String retrieveContext(String question) {
         long t0 = System.nanoTime();
 
-        List<Chunk> densos = dense.search(pregunta, candidates);
+        List<Chunk> densos = dense.search(question, candidates);
 
-        LexicalSearch.LexicalResult lexico = hybridEnabled
-                ? lexical.search(pregunta, candidates)
+        LexicalSearch.LexicalResult lexicalResult = hybridEnabled
+                ? lexical.search(question, candidates)
                 : LexicalSearch.LexicalResult.empty("(híbrida desactivada)");
-        List<Chunk> lexicos = lexico.chunks();
+        List<Chunk> lexicalChunks = lexicalResult.chunks();
 
-        List<RrfFusion.Result> finales = fusion.fuse(densos, lexicos, maxResults);
+        List<RrfFusion.Result> top = fusion.fuse(densos, lexicalChunks, maxResults);
         long ms = (System.nanoTime() - t0) / 1_000_000;
 
-        String cabecera = String.format("RAG (%d ms | emb='%s' | %dD+%dL | lex=\"%s\") \"%s\"",
-                ms, dense.embeddingModelId(), densos.size(), lexicos.size(),
-                oneLine(lexico.query()),oneLine(pregunta));
+        String header = String.format("RAG (%d ms | emb='%s' | %dD+%dL | lex=\"%s\") \"%s\"",
+                ms, dense.embeddingModelId(), densos.size(), lexicalChunks.size(),
+                oneLine(lexicalResult.query()),oneLine(question));
 
-        if (finales.isEmpty()) {
-            log.debug("{} -> 0 chunks (sin contexto relevante)", cabecera);
+        if (top.isEmpty()) {
+            log.debug("{} -> 0 chunks (sin contexto relevante)", header);
             return NO_CONTEXT;
         }
 
-        StringBuilder contexto = new StringBuilder();
-        StringBuilder resumen = new StringBuilder(cabecera)
-                .append(" -> ").append(finales.size()).append(" chunks:");
+        StringBuilder context = new StringBuilder();
+        StringBuilder summary = new StringBuilder(header)
+                .append(" -> ").append(top.size()).append(" chunks:");
 
-        for (RrfFusion.Result r : finales) {
-            resumen.append(String.format("%n   [%-3s %.4f] %-40s %s",
+        for (RrfFusion.Result r : top) {
+            summary.append(String.format("%n   [%-3s %.4f] %-40s %s",
                     r.origin(), r.score(), r.chunk().source(),
                     truncate(r.chunk().text())));
-            contexto.append("- [").append(r.chunk().source()).append("] ")
+            context.append("- [").append(r.chunk().source()).append("] ")
                     .append(r.chunk().text()).append('\n');
         }
-        log.debug("{}", resumen);
-        return contexto.toString();
+        log.debug("{}", summary);
+        return context.toString();
     }
 
     /** Aplana y trunca para que cada chunk ocupe UNA línea del log. */
-    private static String truncate(String texto) {
-        String plano = texto.replaceAll("\\s+", " ").trim();
+    private static String truncate(String text) {
+        String plano = text.replaceAll("\\s+", " ").trim();
         return plano.length() <= 100 ? plano : plano.substring(0, 100) + "...";
     }
     /** Flattens any whitespace so a user message can never break the one-line-per-query log. */

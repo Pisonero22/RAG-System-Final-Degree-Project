@@ -59,7 +59,7 @@ public class CsvDocumentLoader implements DocumentLoader {
                 .setSkipHeaderRecord(true)
                 .build();
         // Sin el prefijo UUID de la subida: "bd49ab9c-..._Productos.csv" -> "Productos.csv"
-        String nombreLimpio = csvPath.getFileName().toString().replaceFirst("^[0-9a-fA-F-]{36}_", "");
+        String cleanName = csvPath.getFileName().toString().replaceFirst("^[0-9a-fA-F-]{36}_", "");
 
         List<Document> documents = new ArrayList<>();
         try (Reader reader = Files.newBufferedReader(csvPath);
@@ -69,9 +69,9 @@ public class CsvDocumentLoader implements DocumentLoader {
                 try{
 
                 // Metadatos mínimos: fichero y fila. Las columnas van solo en el TEXTO.
-                Map<String, Object> map = new LinkedHashMap<>();
-                map.put("nombre", nombreLimpio);
-                map.put("fila", rowNum);
+                Map<String, Object> fields = new LinkedHashMap<>();
+                fields.put("nombre", cleanName);
+                fields.put("fila", rowNum);
                 StringBuilder text = new StringBuilder();
                     for (String header : parser.getHeaderNames()) {
                         String value = record.get(header);
@@ -83,16 +83,16 @@ public class CsvDocumentLoader implements DocumentLoader {
                         text.append(header.replace('_', ' ')).append(": ").append(value).append(" \n ");
                     }
 
-                Metadata meta = Metadata.from(map);
-                documents.add(Document.from(text.toString(), meta));
+                Metadata metadata = Metadata.from(fields);
+                documents.add(Document.from(text.toString(), metadata));
                 }catch (Exception e) {
-                    log.warn("CSV '{}', fila {}: registro ilegible, se omite ({})", nombreLimpio, rowNum, e.toString());
+                    log.warn("CSV '{}', fila {}: registro ilegible, se omite ({})", cleanName, rowNum, e.toString());
                 }
                 rowNum++;
             }
         }
         if (documents.isEmpty()) {
-            log.warn("CSV '{}' sin filas de datos; se omite.", nombreLimpio);
+            log.warn("CSV '{}' sin filas de datos; se omite.", cleanName);
             return List.of();
         }
         return documents;

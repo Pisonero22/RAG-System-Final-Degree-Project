@@ -50,7 +50,7 @@ public class ChatWebSocket {
         // Eco del mensaje del usuario SOLO a su propia conexión.
         connection.sendTextAndAwait(new ChatMessage(MessageType.CHAT_MESSAGE, username, message.message, message.llm,false));
 
-        String respuesta = chatService.chat(username, message.message, message.llm);
-        connection.sendTextAndAwait(new ChatMessage(MessageType.CHAT_MESSAGE, message.llm, respuesta, message.llm,true));
+        String answer = chatService.chat(username, message.message, message.llm);
+        connection.sendTextAndAwait(new ChatMessage(MessageType.CHAT_MESSAGE, message.llm, answer, message.llm,true));
     }
 }

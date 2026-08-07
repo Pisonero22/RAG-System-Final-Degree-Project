@@ -30,16 +30,16 @@ public class ChatResource {
     @Path("/models")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, String> availableModels() {
-        Map<String, String> modelos = new LinkedHashMap<>();
-        modelos.put("llama", ollamaModel("llama"));
-        modelos.put("gpt", config.getOptionalValue(
+        Map<String, String> models = new LinkedHashMap<>();
+        models.put("llama", ollamaModel("llama"));
+        models.put("gpt", config.getOptionalValue(
                         "quarkus.langchain4j.openai.gpt.chat-model.model-name", String.class)
                 .orElse("desconocido"));
-        modelos.put("qwen", ollamaModel("qwen"));
-        modelos.put("gpto", ollamaModel("gpto"));
-        modelos.put("deepseek", ollamaModel("deepseek"));
-        modelos.put("mistral", ollamaModel("mistral"));
-        return modelos;
+        models.put("qwen", ollamaModel("qwen"));
+        models.put("gpto", ollamaModel("gpto"));
+        models.put("deepseek", ollamaModel("deepseek"));
+        models.put("mistral", ollamaModel("mistral"));
+        return models;
     }
 
     private String ollamaModel(String slot) {

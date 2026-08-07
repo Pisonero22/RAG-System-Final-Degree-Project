@@ -27,61 +27,61 @@ public class FileUploadService {
     Path pdfDir;
 
 
-    public Path store(@RestForm("file") InputStream contenido,
-                      @RestForm("fileName") String nombreArchivo) throws IOException {
+    public Path store(@RestForm("file") InputStream content,
+                      @RestForm("fileName") String fileName) throws IOException {
 
-        if (contenido == null || nombreArchivo == null) {
+        if (content == null || fileName == null) {
             throw new IllegalArgumentException("Faltan datos");
         }
 
-        String extension = getExtension(nombreArchivo).toLowerCase();
-        Path dirDestino = resolveDir(extension);
-        if (dirDestino == null) {
+        String ext = getExtension(fileName).toLowerCase();
+        Path targetDir = resolveDir(ext);
+        if (targetDir == null) {
             throw new IllegalArgumentException("Extensión no válida");
         }
 
-        PushbackInputStream entrada = new PushbackInputStream(contenido, 5);
-        if ("pdf".equals(extension)) {
-            byte[] cabecera = entrada.readNBytes(5);
-            entrada.unread(cabecera);
-            if (!new String(cabecera, StandardCharsets.US_ASCII).startsWith("%PDF")) {
+        PushbackInputStream input = new PushbackInputStream(content, 5);
+        if ("pdf".equals(ext)) {
+            byte[] magicBytes = input.readNBytes(5);
+            input.unread(magicBytes);
+            if (!new String(magicBytes, StandardCharsets.US_ASCII).startsWith("%PDF")) {
                 throw new IllegalArgumentException("El archivo tiene extensión .pdf pero no es un PDF válido");
             }
         }
 
-        Path carpetaBase = dirDestino.resolve("uploads").toAbsolutePath().normalize();
-        Files.createDirectories(carpetaBase);
+        Path uploadsDir = targetDir.resolve("uploads").toAbsolutePath().normalize();
+        Files.createDirectories(uploadsDir);
 
-        String nombreSeguro = sanitizeFileName(nombreArchivo);
-        Path destino = carpetaBase.resolve(UUID.randomUUID() + "_" + nombreSeguro).normalize();
+        String safeName = sanitizeFileName(fileName);
+        Path target = uploadsDir.resolve(UUID.randomUUID() + "_" + safeName).normalize();
 
 
 
-        if (!destino.startsWith(carpetaBase)) {
+        if (!target.startsWith(uploadsDir)) {
             throw new IllegalArgumentException("Ruta de destino no válida");
         }
 
-        try (OutputStream out = Files.newOutputStream(destino)) {
-            entrada.transferTo(out);
+        try (OutputStream out = Files.newOutputStream(target)) {
+            input.transferTo(out);
         }
-        return destino;
+        return target;
 
 
     }
 
 
-    private String sanitizeFileName(String nombreArchivo) {
+    private String sanitizeFileName(String fileName) {
         // Se queda solo con el nombre base, ignorando cualquier ruta que venga incluida
-        String base = Paths.get(nombreArchivo).getFileName().toString();
+        String base = Paths.get(fileName).getFileName().toString();
         // Solo permite alfanuméricos, score, guiones y guion bajo
-        String limpio = base.replaceAll("[^a-zA-Z0-9._-]", "_");
-        if (limpio.isBlank() || limpio.equals(".") || limpio.equals("..")) {
+        String sanitized = base.replaceAll("[^a-zA-Z0-9._-]", "_");
+        if (sanitized.isBlank() || sanitized.equals(".") || sanitized.equals("..")) {
             throw new IllegalArgumentException("Nombre de fichero no válido");
         }
-        return limpio;
+        return sanitized;
     }
-    private Path resolveDir(String extension) {
-        return switch (extension.toLowerCase()) {
+    private Path resolveDir(String ext) {
+        return switch (ext.toLowerCase()) {
             case "txt" -> txtDir;
             case "csv" -> csvDir;
             case "pdf" -> pdfDir;
@@ -90,22 +90,22 @@ public class FileUploadService {
     }
 
     private String getExtension(String nombreArchivo) {
-        int punto = nombreArchivo.lastIndexOf('.');
-        return (punto > 0) ? nombreArchivo.substring(punto + 1) : "";
+        int dotIndex = nombreArchivo.lastIndexOf('.');
+        return (dotIndex > 0) ? nombreArchivo.substring(dotIndex + 1) : "";
     }
     public int deleteUploads() throws IOException {
-        int total = 0;
+        int deletedCount = 0;
         for (Path dir : List.of(txtDir, csvDir, pdfDir)) {
             Path uploads = dir.resolve("uploads");
             if (!Files.isDirectory(uploads)) continue;
             try (Stream<Path> archivos = Files.list(uploads)) {
                 for (Path p : archivos.filter(Files::isRegularFile).toList()) {
                     Files.delete(p);
-                    total++;
+                    deletedCount++;
                 }
             }
         }
-        return total;
+        return deletedCount;
     }
 
 
