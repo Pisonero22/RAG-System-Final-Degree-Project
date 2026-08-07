@@ -57,6 +57,8 @@ public interface QueryRewriteService {
         - SUJETO IMPLÍCITO: si el mensaje NO dice de qué habla ("¿y cuánto dura?",
           "¿y el 6?", "¿cuánto cuesta?"), entonces SÍ debes recuperar el sujeto
           del último intercambio y escribirlo explícitamente.
+        - IDIOMA: devuelve la consulta EXACTAMENTE en el mismo idioma que el mensaje nuevo del
+          usuario. Si el mensaje está en inglés, la consulta va en inglés. NUNCA traduzcas.
         Ejemplos:
         (hablando de la PlayStation 5) "¿y cuánto cuesta?" -> precio de la PlayStation 5
         (hablando del yogur natural) "¿y el formato ahorro?" -> precio del yogur natural formato ahorro
@@ -65,6 +67,8 @@ public interface QueryRewriteService {
         "¿Dónde se ha celebrado el torneo de ajedrez?" -> ¿Dónde se ha celebrado el torneo de ajedrez?
         (hablando del manual de misiones) "¿por qué se escondieron los manuscritos?" -> ¿por qué se escondieron los manuscritos?
         (hablando del desembarco final) "¿y cuánto puede durar?" -> cuánto puede durar el desembarco final en las estaciones de cuarentena
+        "What is the price of SKU-2042?" -> What is the price of SKU-2042?
+        (talking about the PlayStation 5) "and how much is it?" -> price of the PlayStation 5
         """)
     String rewrite(String historial, String mensaje);
 }

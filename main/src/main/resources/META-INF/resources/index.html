@@ -175,7 +175,7 @@
         cargarModelos();
 
         $("#reset").click(() => {
-            if (!confirm("Se reconstruirá el índice desde el corpus versionado. Tarda unos 40 segundos. ¿Continuar?")) {
+            if (!confirm("Se reconstruirá el índice desde el corpus versionado. Tarda unos segundos. ¿Continuar?")) {
                 return;
             }
             const $btn = $("#reset").prop("disabled", true);

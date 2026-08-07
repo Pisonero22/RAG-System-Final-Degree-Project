@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import java.text.Normalizer;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @ApplicationScoped
 public class ChatService {
@@ -43,6 +44,9 @@ public class ChatService {
 
     @ConfigProperty(name = "rag.query-rewrite.enabled", defaultValue = "true")
     boolean rewriteEnabled;
+
+    private static final Pattern FOLLOW_UP_START =
+            Pattern.compile("^\\s*(y|and|¿y|pero|but|then|entonces)\\b", Pattern.CASE_INSENSITIVE);
 
 
     public String chat(String username, String message, String modelProvider){
@@ -139,6 +143,10 @@ public class ChatService {
         String history = flattenHistory(username);
         if (history.isBlank()) {
             // Primera question: no hay nada que condensar (y nos ahorramos la llamada).
+            if (!looksElliptical(question)) {
+                log.debug("[{}] self-contained message, rewriter skipped", username);
+                return question;
+            }
             return question;
         }
         try {
@@ -223,5 +231,10 @@ public class ChatService {
                 .replaceAll("\\p{M}", "")               // fuera las tildes
                 .replaceAll("[^\\p{L}\\p{N}]", "")      // fuera signos y espacios
                 .toLowerCase();
+    }
+
+    private static boolean looksElliptical(String message) {
+        return message.trim().split("\\s+").length < 6
+                || FOLLOW_UP_START.matcher(message).find();
     }
 }
