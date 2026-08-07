@@ -2,6 +2,7 @@ package es.upsa.search;
 
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.rag.content.Content;
+import dev.langchain4j.rag.content.ContentMetadata;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.rag.query.Query;
 import io.quarkiverse.langchain4j.redis.RedisEmbeddingStore;
@@ -72,9 +73,13 @@ public class DenseSearch {
         List<Content> results = retriever.retrieve(Query.from(question));
         return results.stream()
                 .limit(limit)
-                .map(c -> new Chunk(
-                        c.textSegment().text(),
-                        Sources.format(c.textSegment().metadata().toMap())))
+                .map(c -> {
+                    Object score = c.metadata().get(ContentMetadata.SCORE);   // <-- el coseno
+                    log.debug("  dense score={} {}", score,
+                            Sources.format(c.textSegment().metadata().toMap()));
+                    return new Chunk(c.textSegment().text(),
+                            Sources.format(c.textSegment().metadata().toMap()));
+                })
                 .toList();
     }
 

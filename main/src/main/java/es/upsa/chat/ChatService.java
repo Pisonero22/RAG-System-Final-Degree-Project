@@ -143,10 +143,11 @@ public class ChatService {
         String history = flattenHistory(username);
         if (history.isBlank()) {
             // Primera question: no hay nada que condensar (y nos ahorramos la llamada).
-            if (!looksElliptical(question)) {
-                log.debug("[{}] self-contained message, rewriter skipped", username);
-                return question;
-            }
+
+            return question;
+        }
+        if (!looksElliptical(question)) {
+            log.debug("[{}] self-contained message, rewriter skipped", username);
             return question;
         }
         try {
