@@ -55,7 +55,7 @@ public class LexicalSearch {
             // question verbs and fillers that never appear in the data
             "does", "do", "did", "is", "are", "was", "were", "can", "could",
             "say", "says", "tell", "give", "show", "much", "many", "there", "about", "with", "from", "into",
-            "cost","costs"
+            "cost","costs","long"
 
 
     );
@@ -90,11 +90,16 @@ public class LexicalSearch {
     private static final Pattern CONTENT_WORD = Pattern.compile("\\p{L}{4,}");
 
     /**
-     * Sin al menos un término sustantivo, la query no puede ser una búsqueda
-     * literal útil. Caso observado: "y el 7?" produce la query "7", y un dígito
-     * suelto coincide con cientos de precios, identificadores y números de semana
-     * del corpus. En esos casos la rama léxica se abstiene y la cobertura la
-     * aporta la búsqueda densa, que sí sabe interpretar la pregunta.
+     * The lexical branch abstains when the query cannot be a useful literal search.
+     *
+     * The dangerous case is a SINGLE bare term: "y el 7?" yields the query "7", and a lone
+     * digit matches hundreds of prices, identifiers and week numbers across the corpus.
+     *
+     * Two or more terms already make a conjunctive search meaningful even when none of them is
+     * a long word. Measured: the query "SKU 2041" was rejected by the previous rule (it has no
+     * word of four letters or more) even though the lexical branch is the ONLY one able to
+     * resolve an identifier — for that same query the dense branch ranked the exact row 4th out
+     * of 9, inside a score range of 0.018.
      */
     static boolean isWorthSearching(String query) {
         if (query.isBlank()) {

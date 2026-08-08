@@ -47,6 +47,7 @@ public class ChatService {
 
     private static final Pattern FOLLOW_UP_START =
             Pattern.compile("^\\s*(y|and|¿y|pero|but|then|entonces)\\b", Pattern.CASE_INSENSITIVE);
+
     private static final Pattern IDENTIFIER = Pattern.compile("\\p{L}{2,}[-_]?\\d{2,}");
 
 
