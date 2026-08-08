@@ -1,0 +1,30 @@
+# Golden set for the retrieval benchmark.
+# Separator is ';' because questions contain commas.
+# expectedSource must match the string produced by Sources.format, or a prefix of it:
+#   CSV  -> "warehouse_inventory.csv (fila 1)"   the row IS the answer, so demand the row
+#   PDF  -> "orbital_station_handbook.pdf"       the page overlap may legitimately move the
+#                                                answer between pages, so do not demand a page
+#   TXT  -> "logistics_service_bulletin.txt"
+id;question;expectedSource;kind
+Q01;What is the price of SKU-2041?;warehouse_inventory.csv (fila 1);identifier
+Q02;What is the price of SKU-2042?;warehouse_inventory.csv (fila 2);identifier
+Q03;SKU-2041;warehouse_inventory.csv (fila 1);bare-identifier
+Q04;Cuanto cuesta el SKU-2820?;warehouse_inventory.csv (fila 23);identifier
+Q05;¿Cuál es el precio del SKU-2041?;warehouse_inventory.csv (fila 1);identifier-crosslingual
+Q06;¿Cuántas unidades hay del Thermal Probe Calibrator?;warehouse_inventory.csv (fila 1);product-name
+Q07;What does it say about heavy pressure suits?;orbital_station_handbook.pdf;prose-en
+Q08;When is a Red Hazard Level declared?;orbital_station_handbook.pdf;prose-en
+Q09;How long can the final disembarkation last?;orbital_station_handbook.pdf;prose-en
+Q10;What precautions apply before opening a hatch?;orbital_station_handbook.pdf;paraphrase-en
+Q11;How long do I have to report a data breach?;data_protection_policy.pdf;prose-en
+Q12;How much does refrigerated storage cost?;logistics_service_bulletin.txt;prose-en
+Q13;How much is the fine for exceeding two hours?;logistics_service_bulletin.txt;prose-en
+Q14;¿Cuánto cuesta el almacenaje refrigerado?;logistics_service_bulletin.txt;crosslingual
+Q15;¿Qué dice sobre los trajes de presión pesada?;orbital_station_handbook.pdf;crosslingual
+Q16;Cuanto es el máximo de centímetros para el envío domestico?;logistics_service_bulletin.txt;crosslingual
+Q17;How much I have to pay for cebollas de 1kg?;inventario_supermercado_masivo.csv (fila 39);code-switch
+# ---------------------------------------------------------------------------------------
+# TODO: add five or six rows from the SPANISH corpus so that the benchmark is not measured
+# almost entirely on the English documents. Take them from the missions manual, Productos.csv
+# and inventario_supermercado_masivo.csv. Suggested kinds: identifier-es, prose-es, paraphrase-es.
+# ---------------------------------------------------------------------------------------

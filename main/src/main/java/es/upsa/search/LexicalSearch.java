@@ -41,7 +41,8 @@ public class LexicalSearch {
             "y", "o", "u", "ni", "pero", "aunque", "porque", "si", "no", "ya", "también",
             // interrogativos
             "que", "qué", "cual", "cuál", "cuáles", "cuanto", "cuánto", "cuánta", "cuántos",
-            "cuando", "cuándo", "como", "cómo", "donde", "dónde", "quien", "quién",
+            "cuando", "cuándo", "como", "cómo", "donde", "dónde", "quien", "quién","cuántas",
+            "cuantos","cuantas",
             // verbos y muletillas de pregunta
             "es", "son", "ser", "está", "están", "hay", "tiene", "tienen", "dice", "dicen",
             "dime", "dame", "decir", "saber", "sabes", "hace", "hacen", "puede", "pueden",
