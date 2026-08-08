@@ -18,10 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.ToIntFunction;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -248,7 +245,53 @@ class RetrievalBenchmarkTest {
         return output;
     }
 
+    /** Locale.ROOT so the decimal separator is always a dot, whatever the machine's locale is. */
+    private static String decimals(double value, int places) {
+        return String.format(Locale.ROOT, "%." + places + "f", value);
+    }
+
+    /**
+     * Renders a Markdown table with every column padded to its widest cell. GitHub renders it
+     * the same either way, but a padded table is also readable as plain text in an editor.
+     */
+    private static String markdownTable(List<String> headers, List<List<String>> rows) {
+        int columns = headers.size();
+        int[] width = new int[columns];
+        for (int column = 0; column < columns; column++) {
+            width[column] = headers.get(column).length();
+        }
+        for (List<String> row : rows) {
+            for (int column = 0; column < columns; column++) {
+                width[column] = Math.max(width[column], row.get(column).length());
+            }
+        }
+
+        StringBuilder out = new StringBuilder();
+        appendRow(out, headers, width);
+        List<String> separator = new ArrayList<>();
+        for (int column = 0; column < columns; column++) {
+            separator.add("-".repeat(width[column]));
+        }
+        appendRow(out, separator, width);
+        for (List<String> row : rows) {
+            appendRow(out, row, width);
+        }
+        return out.toString();
+    }
+
+    private static void appendRow(StringBuilder out, List<String> cells, int[] width) {
+        out.append('|');
+        for (int column = 0; column < cells.size(); column++) {
+            String cell = cells.get(column);
+            out.append(' ').append(cell)
+                    .append(" ".repeat(Math.max(0, width[column] - cell.length())))
+                    .append(" |");
+        }
+        out.append('\n');
+    }
+
     /** Markdown with the three tables, ready to paste into the README. */
+    /** The three tables, ready to paste into the README. */
     private String buildMarkdown(List<Outcome> outcomes, String timestamp) {
         StringBuilder out = new StringBuilder("# Retrieval benchmark\n\n");
         out.append("Run: ").append(timestamp)
@@ -256,45 +299,47 @@ class RetrievalBenchmarkTest {
                 .append(" | candidates per branch: ").append(CANDIDATES)
                 .append(" | hit@").append(TOP_K).append("\n\n");
 
-        out.append("## Overall\n\n")
-                .append("| strategy | hit@").append(TOP_K).append(" | MRR |\n")
-                .append("|---|---|---|\n");
+        out.append("## Overall\n\n");
+        List<List<String>> overall = new ArrayList<>();
         for (Metric metric : List.of(
                 metricOf("dense only", outcomes, Outcome::denseRank),
                 metricOf("lexical only", outcomes, Outcome::lexicalRank),
                 metricOf("hybrid (RRF)", outcomes, Outcome::hybridRank))) {
-            out.append(String.format("| %s | %.2f | %.3f |%n",
-                    metric.name(), metric.hitRate(), metric.mrr()));
+            overall.add(List.of(metric.name(),
+                    decimals(metric.hitRate(), 2), decimals(metric.mrr(), 3)));
         }
+        out.append(markdownTable(List.of("strategy", "hit@" + TOP_K, "MRR"), overall));
 
-        out.append("\n## By question type\n\n")
-                .append("| kind | n | dense hit@").append(TOP_K)
-                .append(" | lexical hit@").append(TOP_K)
-                .append(" | hybrid hit@").append(TOP_K)
-                .append(" | dense MRR | lexical MRR | hybrid MRR |\n")
-                .append("|---|---|---|---|---|---|---|---|\n");
+        out.append("\n## By question type\n\n");
+        List<List<String>> byKind = new ArrayList<>();
         for (Map.Entry<String, List<Outcome>> entry : groupByKind(outcomes).entrySet()) {
             List<Outcome> group = entry.getValue();
             Metric d = metricOf("d", group, Outcome::denseRank);
             Metric l = metricOf("l", group, Outcome::lexicalRank);
             Metric h = metricOf("h", group, Outcome::hybridRank);
-            out.append(String.format("| %s | %d | %.2f | %.2f | %.2f | %.3f | %.3f | %.3f |%n",
-                    entry.getKey(), group.size(),
-                    d.hitRate(), l.hitRate(), h.hitRate(), d.mrr(), l.mrr(), h.mrr()));
+            byKind.add(List.of(entry.getKey(), String.valueOf(group.size()),
+                    decimals(d.hitRate(), 2), decimals(l.hitRate(), 2), decimals(h.hitRate(), 2),
+                    decimals(d.mrr(), 3), decimals(l.mrr(), 3), decimals(h.mrr(), 3)));
         }
+        out.append(markdownTable(List.of("kind", "n",
+                "dense hit@" + TOP_K, "lexical hit@" + TOP_K, "hybrid hit@" + TOP_K,
+                "dense MRR", "lexical MRR", "hybrid MRR"), byKind));
 
-        out.append("\n## Question by question\n\n")
-                .append("| # | kind | question | dense | lexical | hybrid |\n")
-                .append("|---|---|---|---|---|---|\n");
+        out.append("\n## Question by question\n\n");
+        List<List<String>> perQuestion = new ArrayList<>();
         for (Outcome outcome : outcomes) {
-            out.append(String.format("| %s | %s | %s | %s | %s | %s |%n",
+            perQuestion.add(List.of(
                     outcome.testCase().id(), outcome.testCase().kind(),
                     outcome.testCase().question(),
                     position(outcome.denseRank()),
                     position(outcome.lexicalRank()),
                     position(outcome.hybridRank())));
         }
-        out.append("\n`#n` is the position of the expected source; `-` means it was not retrieved.\n");
+        out.append(markdownTable(
+                List.of("#", "kind", "question", "dense", "lexical", "hybrid"), perQuestion));
+
+        out.append("\n`#n` is the position of the expected source; ")
+                .append("`-` means it was not retrieved.\n");
         return out.toString();
     }
 
