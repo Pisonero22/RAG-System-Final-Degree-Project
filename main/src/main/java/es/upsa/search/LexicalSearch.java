@@ -96,8 +96,11 @@ public class LexicalSearch {
      * del corpus. En esos casos la rama léxica se abstiene y la cobertura la
      * aporta la búsqueda densa, que sí sabe interpretar la pregunta.
      */
-    static boolean hasContentWord(String query) {
-        return CONTENT_WORD.matcher(query).find();
+    static boolean isWorthSearching(String query) {
+        if (query.isBlank()) {
+            return false;
+        }
+        return query.split("\\s+").length >= 2 || CONTENT_WORD.matcher(query).find();
     }
     /**
      * Fragmentos ordenados por relevancia BM25, junto con la query enviada.
@@ -106,12 +109,6 @@ public class LexicalSearch {
      * Ante cualquier fallo devuelve una lista vacía: igual que la reescritura de
      * query, esta etapa es una mejora y nunca un punto de fallo del sistema.
      */
-    static boolean isWorthSearching(String query) {
-        if (query.isBlank()) {
-            return false;
-        }
-        return query.split("\\s+").length >= 2 || CONTENT_WORD.matcher(query).find();
-    }
     public LexicalResult search(String question, int limit) {
         String query = toRediSearchQuery(question);
         if (!isWorthSearching(query)) {

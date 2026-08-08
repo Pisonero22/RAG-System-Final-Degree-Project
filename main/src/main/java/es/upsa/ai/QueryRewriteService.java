@@ -43,7 +43,6 @@ public interface QueryRewriteService {
           devuélvelo EXACTAMENTE igual. No lo conviertas en pregunta.
         - Añade contexto SOLO si el mensaje no dice de qué habla: "¿y el precio?",
           "¿cuánto dura?", "¿y el 6?". Ahí el sujeto hay que recuperarlo del historial.        
-          temas de intercambios anteriores aunque estén relacionados.
         - SUJETO EXPLÍCITO: si el mensaje ya dice de qué habla ("¿por qué se
           escondieron los manuscritos?", "¿qué dice sobre los trajes Clase IV?"),
           devuélvelo TAL CUAL. No le añadas temas de intercambios anteriores
