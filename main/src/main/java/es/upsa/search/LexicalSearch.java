@@ -54,7 +54,8 @@ public class LexicalSearch {
             "what", "which", "how", "where", "when", "who", "why",
             // question verbs and fillers that never appear in the data
             "does", "do", "did", "is", "are", "was", "were", "can", "could",
-            "say", "says", "tell", "give", "show", "much", "many", "there", "about", "with", "from", "into"
+            "say", "says", "tell", "give", "show", "much", "many", "there", "about", "with", "from", "into",
+            "cost","costs"
 
 
     );
@@ -105,10 +106,15 @@ public class LexicalSearch {
      * Ante cualquier fallo devuelve una lista vacía: igual que la reescritura de
      * query, esta etapa es una mejora y nunca un punto de fallo del sistema.
      */
+    static boolean isWorthSearching(String query) {
+        if (query.isBlank()) {
+            return false;
+        }
+        return query.split("\\s+").length >= 2 || CONTENT_WORD.matcher(query).find();
+    }
     public LexicalResult search(String question, int limit) {
         String query = toRediSearchQuery(question);
-
-        if (query.isBlank() || !hasContentWord(query)) {
+        if (!isWorthSearching(query)) {
             return LexicalResult.empty(query);
         }
         try {
@@ -191,5 +197,4 @@ public class LexicalSearch {
         Document.Property p = document.property(name);
         return (p == null) ? null : p.asString();
     }
-
 }

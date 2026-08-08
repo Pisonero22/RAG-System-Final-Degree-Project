@@ -30,11 +30,7 @@ public interface QueryRewriteService {
         (cualquier palabra que solo se entienda leyendo la conversación) por aquello
         a lo que se refieren.
 
-        Reglas:
-        - SEGUIMIENTO CORTO: si el mensaje tiene menos de cinco palabras o empieza por "y",
-          es casi seguro un seguimiento. Identifica el SUJETO principal del último
-          intercambio (el producto, documento o entidad del que se estaba hablando) y
-          escríbelo explícitamente en la consulta.
+        Reglas:    
         - TEMA NUEVO: si el mensaje pregunta por algo que NO se ha mencionado antes,
           devuélvelo EXACTAMENTE igual. Nunca lo relaciones con el tema anterior.
         - YA AUTOCONTENIDO: si el mensaje se entiende por sí solo, devuélvelo igual.
@@ -46,9 +42,7 @@ public interface QueryRewriteService {
           cuenta sobre sí mismo ("me llamo...", "vivo en...", "estudio..."),
           devuélvelo EXACTAMENTE igual. No lo conviertas en pregunta.
         - Añade contexto SOLO si el mensaje no dice de qué habla: "¿y el precio?",
-          "¿cuánto dura?", "¿y el 6?". Ahí el sujeto hay que recuperarlo del historial.
-        - Si el mensaje YA NOMBRA su sujeto ("¿por qué se escondieron los manuscritos?",
-          "¿qué dice sobre los trajes Clase IV?"), devuélvelo TAL CUAL. No le añadas
+          "¿cuánto dura?", "¿y el 6?". Ahí el sujeto hay que recuperarlo del historial.        
           temas de intercambios anteriores aunque estén relacionados.
         - SUJETO EXPLÍCITO: si el mensaje ya dice de qué habla ("¿por qué se
           escondieron los manuscritos?", "¿qué dice sobre los trajes Clase IV?"),

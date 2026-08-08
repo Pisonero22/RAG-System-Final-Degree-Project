@@ -47,6 +47,7 @@ public class ChatService {
 
     private static final Pattern FOLLOW_UP_START =
             Pattern.compile("^\\s*(y|and|¿y|pero|but|then|entonces)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern IDENTIFIER = Pattern.compile("\\p{L}{2,}[-_]?\\d{2,}");
 
 
     public String chat(String username, String message, String modelProvider){
@@ -143,7 +144,6 @@ public class ChatService {
         String history = flattenHistory(username);
         if (history.isBlank()) {
             // Primera question: no hay nada que condensar (y nos ahorramos la llamada).
-
             return question;
         }
         if (!looksElliptical(question)) {
@@ -234,7 +234,10 @@ public class ChatService {
                 .toLowerCase();
     }
 
-    private static boolean looksElliptical(String message) {
+    static boolean looksElliptical(String message) {
+        if (IDENTIFIER.matcher(message).find()) {
+            return false;
+        }
         return message.trim().split("\\s+").length < 6
                 || FOLLOW_UP_START.matcher(message).find();
     }
