@@ -305,7 +305,7 @@ class RetrievalBenchmarkTest {
         StringBuilder out = new StringBuilder("# Retrieval benchmark\n\n");
         out.append("Run: ").append(timestamp)
                 .append(" | questions: ").append(outcomes.size())
-                .append(" | candidates per branch: ").append(CANDIDATES)
+                .append(" | candidates per branch: ").append(candidates)
                 .append(" | hit@").append(TOP_K).append("\n\n");
 
         out.append("## Overall\n\n");
