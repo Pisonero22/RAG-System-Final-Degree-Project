@@ -1,7 +1,6 @@
 package es.upsa.search;
 
 import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.rag.content.ContentMetadata;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.rag.query.Query;
@@ -66,7 +65,7 @@ public class DenseSearch {
     }
 
     /** Fragmentos ordenados por similitud, como máximo 'limit'. */
-    public List<Chunk> search(String question, int limit) {
+    public List<Chunk> search(String question) {
         if (question == null || question.isBlank()) {
             return List.of();       // Query.from("") lanza excepción
         }

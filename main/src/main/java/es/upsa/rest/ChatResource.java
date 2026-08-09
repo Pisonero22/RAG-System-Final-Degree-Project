@@ -1,6 +1,7 @@
 package es.upsa.rest;
 
 
+import es.upsa.ai.ModelSlot;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
@@ -30,22 +31,19 @@ public class ChatResource {
     @Path("/models")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, String> availableModels() {
+
         Map<String, String> models = new LinkedHashMap<>();
-        models.put("llama", ollamaModel("llama"));
-        models.put("gpt", config.getOptionalValue(
-                        "quarkus.langchain4j.openai.gpt.chat-model.model-name", String.class)
-                .orElse("desconocido"));
-        models.put("qwen", ollamaModel("qwen"));
-        models.put("gpto", ollamaModel("gpto"));
-        models.put("deepseek", ollamaModel("deepseek"));
-        models.put("mistral", ollamaModel("mistral"));
+        for (ModelSlot slot : ModelSlot.values()) {
+            if (slot == ModelSlot.GPT && config.getOptionalValue(
+                            "quarkus.langchain4j.openai.gpt.api-key", String.class)
+                    .filter(k -> !k.isBlank() && !"dummy".equals(k)).isEmpty()) {
+                continue;
+            }
+            models.put(slot.slot(),
+                    config.getOptionalValue(slot.modelProperty(), String.class).orElse("desconocido"));
+        }
         return models;
     }
 
-    private String ollamaModel(String slot) {
-        return config.getOptionalValue(
-                        "quarkus.langchain4j.ollama." + slot + ".chat-model.model-id", String.class)
-                .orElse("desconocido");
-    }
 
 }

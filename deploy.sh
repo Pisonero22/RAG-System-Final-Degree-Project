@@ -18,7 +18,6 @@ ollama pull bge-m3             # embeddings (obligatorio)
 ollama pull llama3.1:8b        # modelo por defecto (detector + reescritor) y slot 'llama'
 ollama pull mistral:instruct   # comparativa
 ollama pull deepseek-r1:7b     # comparativa
-ollama pull llama3.2           # baseline 3B de la comparativa (bórralo si no lo usas)
 ollama pull gpt-oss:20b
 
 echo "Levantando servicios de Docker Compose en background…"

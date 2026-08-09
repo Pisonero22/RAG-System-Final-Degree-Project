@@ -276,12 +276,10 @@
                 });
             })
             .fail(() => {
-
+                sel.append('<option value="gpto">gpto (Ollama local)</option>');
                 sel.append('<option value="llama">llama (Ollama local)</option>');
                 sel.append('<option value="gpt">gpt (OpenAI)</option>');
                 sel.append('<option value="deepseek">deepseek (Ollama local)</option>');
-                sel.append('<option value="qwen">qwen (Ollama local)</option>');
-                sel.append('<option value="gpto">gpto (Ollama local)</option>');
                 sel.append('<option value="mistral">mistral (Ollama local)</option>');
             });
     }

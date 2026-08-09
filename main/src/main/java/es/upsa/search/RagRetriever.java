@@ -55,7 +55,7 @@ public class RagRetriever {
     public String retrieveContext(String question) {
         long t0 = System.nanoTime();
 
-        List<Chunk> densos = dense.search(question, candidates);
+        List<Chunk> densos = dense.search(question);
 
         LexicalSearch.LexicalResult lexicalResult = hybridEnabled
                 ? lexical.search(question, candidates)

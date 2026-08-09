@@ -6,6 +6,7 @@ import es.upsa.search.LexicalSearch;
 import es.upsa.search.RrfFusion;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -53,8 +54,7 @@ class RetrievalBenchmarkTest {
     /** Positions that count as a hit. Mirrors rag.retriever.max-results. */
     private static final int TOP_K = 3;
 
-    /** Candidates each branch contributes to the fusion. Mirrors rag.retriever.candidates. */
-    private static final int CANDIDATES = 10;
+    /**
 
     private static final String GOLDEN_SET = "/eval/golden-set.csv";
 
@@ -69,6 +69,15 @@ class RetrievalBenchmarkTest {
 
     @Inject
     RrfFusion fusion;
+
+    /**
+     * Injected, not a constant: the benchmark must measure the SAME number of candidates the
+     * application actually uses. A hard-coded 10 that happens to match today would silently stop
+     * matching the day rag.retriever.candidates is swept — and the report would still claim it
+     * measured the running configuration.
+     */
+    @ConfigProperty(name = "rag.retriever.candidates")
+    int candidates;
 
     /** One row of the golden set. */
     private record GoldenCase(String id, String question, String expectedSource, String kind) {}
@@ -86,9 +95,9 @@ class RetrievalBenchmarkTest {
 
         List<Outcome> outcomes = new ArrayList<>();
         for (GoldenCase testCase : goldenSet) {
-            List<Chunk> denseChunks = dense.search(testCase.question(), CANDIDATES);
-            List<Chunk> lexicalChunks = lexical.search(testCase.question(), CANDIDATES).chunks();
-            List<Chunk> fusedChunks = fusion.fuse(denseChunks, lexicalChunks, CANDIDATES)
+            List<Chunk> denseChunks = dense.search(testCase.question());
+            List<Chunk> lexicalChunks = lexical.search(testCase.question(), candidates).chunks();
+            List<Chunk> fusedChunks = fusion.fuse(denseChunks, lexicalChunks, candidates)
                     .stream()
                     .map(RrfFusion.Result::chunk)
                     .toList();
@@ -127,9 +136,9 @@ class RetrievalBenchmarkTest {
      */
     @Test
     void aGreetingRetrievesNothing() {
-        assertTrue(dense.search("Hola", CANDIDATES).isEmpty(),
+        assertTrue(dense.search("Hola").isEmpty(),
                 "the dense threshold has become too permissive");
-        assertTrue(lexical.search("Hola", CANDIDATES).chunks().isEmpty(),
+        assertTrue(lexical.search("Hola", candidates).chunks().isEmpty(),
                 "the lexical branch is matching a bare greeting");
     }
 

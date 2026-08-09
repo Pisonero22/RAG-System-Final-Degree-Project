@@ -2,6 +2,7 @@ package es.upsa.chat;
 
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
+import es.upsa.ai.ModelSlot;
 import es.upsa.ai.PromptInjectionDetectionService;
 import es.upsa.ai.QueryRewriteService;
 import es.upsa.ai.RagAssistant;
@@ -57,8 +58,8 @@ public class ChatService {
             return "No he recibido ningún mensaje. Escribe algo y te respondo.";
         }
 
-        String slot = normalizeSlot(modelProvider);
-        String modelTag = resolveModelTag(slot);
+        ModelSlot slot =  ModelSlot.from(modelProvider);
+        String modelTag = config.getOptionalValue(slot.modelProperty(), String.class).orElse("desconocido");
         String question = message.trim();
 
 
@@ -87,7 +88,7 @@ public class ChatService {
                     : "La búsqueda del context se ha realizado interpretando la question como: \""
                     + query + "\". Si el context encaja con esa interpretación, úsalo.";
 
-            String answer = assistant.chat(slot, username,interpretation, context, question);
+            String answer = assistant.chat(slot.slot(), username,interpretation, context, question);
             long ms = (System.nanoTime() - t0) / 1_000_000;
             log.info("[{}] slot='{}' modelo='{}' respondió en {} ms",
                     username, slot, modelTag, ms);
@@ -110,27 +111,6 @@ public class ChatService {
                     username, (System.nanoTime() - t0) / 1_000_000, e.getMessage());
             return false;
         }
-    }
-
-    private String resolveModelTag(String slot) {
-        String propertyName = "gpt".equals(slot)
-                ? "quarkus.langchain4j.openai.gpt.chat-model.model-name"
-                : "quarkus.langchain4j.ollama." + slot + ".chat-model.model-id";
-        return config.getOptionalValue(propertyName, String.class).orElse("desconocido");
-    }
-
-    private String normalizeSlot(String name) {
-        if (name == null || name.isBlank()) {
-            return "llama";
-        }
-        return switch (name.toLowerCase()) {
-            case "openai", "gpt" -> "gpt";
-            case "deepseek"      -> "deepseek";
-            case "mistral"       -> "mistral";
-            case "qwen"          -> "qwen";
-            case "gpto"          -> "gpto";
-            default              -> "llama";
-        };
     }
 
     /**
