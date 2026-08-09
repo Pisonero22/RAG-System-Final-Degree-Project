@@ -35,7 +35,7 @@ public class AdminResource {
     @POST
     @Path("/reset")
     @Produces(MediaType.TEXT_PLAIN)
-    public Response rebuildIndex() throws IOException {
+    public Response rebuildIndex(){
         try {
             storage.rebuildIndex();
             return Response.ok()
@@ -84,7 +84,7 @@ public class AdminResource {
     @POST
     @Path("/clean-uploads")
     @Produces(MediaType.TEXT_PLAIN)
-    public Response cleanUploads() throws IOException {
+    public Response cleanUploads(){
         int deleted;
         try {
             deleted = fileUploadService.deleteUploads();

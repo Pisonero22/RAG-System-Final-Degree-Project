@@ -39,7 +39,7 @@ public class DenseSearch {
     String embeddingModelId;
     @ConfigProperty(name = "quarkus.langchain4j.redis.dimension")
     long dimension;
-    @ConfigProperty(name = "rag.retriever.candidates", defaultValue = "10")
+    @ConfigProperty(name = "rag.retriever.candidates")
     int candidates;
     /**
      * Calibrado con logs reales (score = (1+coseno)/2 con bge-m3): los relevantes
@@ -70,9 +70,7 @@ public class DenseSearch {
         if (question == null || question.isBlank()) {
             return List.of();       // Query.from("") lanza excepción
         }
-        List<Content> results = retriever.retrieve(Query.from(question));
-        return results.stream()
-                .limit(limit)
+        return retriever.retrieve(Query.from(question)).stream()
                 .map(c -> {
                     Object score = c.metadata().get(ContentMetadata.SCORE);   // <-- el coseno
                     log.debug("  dense score={} {}", score,

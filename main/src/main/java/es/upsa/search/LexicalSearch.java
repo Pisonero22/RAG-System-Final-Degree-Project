@@ -60,13 +60,6 @@ public class LexicalSearch {
 
 
     );
-    /**
-     * A message only needs rewriting when it cannot stand on its own. Measured: in a
-     * 12-question run, 8 rewrites were triggered, none of them was elliptical, and all 8
-     * translated the query into the language of the prompt, breaking the lexical branch.
-     * Skipping the rewriter for self-contained messages removes the cost AND the risk.
-     */
-
 
     @Inject
     RedisDataSource redis;

@@ -39,6 +39,7 @@ public class ChatService {
 
     @Inject
     PromptInjectionDetectionService detector;
+
     @ConfigProperty(name = "guardrail.threshold", defaultValue = "0.89")
     double injectionThreshold;
 

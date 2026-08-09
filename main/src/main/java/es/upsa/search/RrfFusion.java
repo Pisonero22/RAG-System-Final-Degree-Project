@@ -3,9 +3,7 @@ package es.upsa.search;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Reciprocal Rank Fusion: combina varias listas ordenadas en una sola.
@@ -70,11 +68,15 @@ public class RrfFusion {
     private void accumulate(List<Chunk> chunks, double weight, String label,
                             Map<String, Double> puntos, Map<String, Chunk> byText,
                             Map<String, String> origen) {
+        Set<String> alreadyScored = new HashSet<>();
         for (int i = 0; i < chunks.size(); i++) {
-            Chunk f = chunks.get(i);
-            puntos.merge(f.text(), weight / (k + i + 1), Double::sum);
-            byText.putIfAbsent(f.text(), f);
-            origen.merge(f.text(), label, (ya, nuevo) -> ya + "+" + nuevo);
+            Chunk chunk = chunks.get(i);
+            if (!alreadyScored.add(chunk.text())) {
+                continue;                       // ya puntuó en esta rama, con mejor puesto
+            }
+            puntos.merge(chunk.text(), weight / (k + i + 1), Double::sum);
+            byText.putIfAbsent(chunk.text(), chunk);
+            origen.merge(chunk.text(), label, (ya, nuevo) -> ya + "+" + nuevo);
         }
     }
 

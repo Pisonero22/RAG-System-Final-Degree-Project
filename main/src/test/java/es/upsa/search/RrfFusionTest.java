@@ -118,4 +118,18 @@ public class RrfFusionTest {
         assertEquals(1.0 / 61, balanced.get(0).score(), 1e-9);
     }
 
+    @Test
+    @DisplayName("un texto repetido dentro de la misma rama puntúa una sola vez: un duplicado del "
+            + "corpus no puede doblar su puntuación")
+    void aDuplicateWithinOneBranchScoresOnce() {
+        List<Chunk> withDuplicate = List.of(chunk("misma fila"), chunk("otra"), chunk("misma fila"));
+
+        List<RrfFusion.Result> fused = fusion.fuse(withDuplicate, List.of(), 3);
+
+        assertEquals(2, fused.size(), "el duplicado no se ha fusionado");
+        assertEquals("misma fila", fused.get(0).chunk().text());
+        assertEquals("D", fused.get(0).origin(), "el origen no puede ser D+D");
+        assertEquals(1.0 / 61, fused.get(0).score(), 1e-9, "ha puntuado dos veces");
+    }
+
 }

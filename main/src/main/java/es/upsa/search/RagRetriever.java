@@ -38,7 +38,7 @@ public class RagRetriever {
     boolean hybridEnabled;
 
     /** Candidatos que aporta cada búsqueda a la fusión. */
-    @ConfigProperty(name = "rag.retriever.candidates", defaultValue = "10")
+    @ConfigProperty(name = "rag.retriever.candidates")
     int candidates;
 
     /** Fragmentos que acaban en el contexto del modelo. */

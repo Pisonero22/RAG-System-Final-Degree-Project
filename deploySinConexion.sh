@@ -4,7 +4,7 @@ set -euo pipefail
 cleanup() {
   echo
   echo "Deteniendo servicios de Docker Compose…"
-  docker compose down --rmi local
+  docker compose down
 }
 trap cleanup EXIT
 

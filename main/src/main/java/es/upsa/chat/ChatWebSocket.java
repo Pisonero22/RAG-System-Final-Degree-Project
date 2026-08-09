@@ -18,12 +18,13 @@ public class ChatWebSocket {
     @Inject
     WebSocketConnection connection;
 
-    public enum MessageType {USER_JOINED, USER_LEFT, CHAT_MESSAGE}
+    public enum MessageType {USER_JOINED, CHAT_MESSAGE}
     public record ChatMessage(MessageType type, String from, String message, String llm, boolean fromAssistant) {}
 
     @OnError
     public ChatMessage onError(Throwable t) {
         log.error("WebSocket error for user '{}'", connection.pathParam("username"), t);
+
         return new ChatMessage(MessageType.CHAT_MESSAGE, "system",
                 "Ha ocurrido un error. Vuelve a intentarlo.", null, true);
     }

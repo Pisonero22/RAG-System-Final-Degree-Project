@@ -27,8 +27,7 @@ public class FileUploadService {
     Path pdfDir;
 
 
-    public Path store(@RestForm("file") InputStream content,
-                      @RestForm("fileName") String fileName) throws IOException {
+    public Path store(InputStream content, String fileName) throws IOException {
 
         if (content == null || fileName == null) {
             throw new IllegalArgumentException("Faltan datos");
