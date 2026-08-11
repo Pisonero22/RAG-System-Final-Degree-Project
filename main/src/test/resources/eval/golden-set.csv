@@ -1,30 +1,150 @@
 # Golden set for the retrieval benchmark.
 # Separator is ';' because questions contain commas.
+#
 # expectedSource must match the string produced by Sources.format, or a prefix of it:
 #   CSV  -> "warehouse_inventory.csv (fila 1)"   the row IS the answer, so demand the row
-#   PDF  -> "orbital_station_handbook.pdf"       the page overlap may legitimately move the
+#   PDF  -> "orbital_station_handbook.pdf"       the page bridge may legitimately move the
 #                                                answer between pages, so do not demand a page
 #   TXT  -> "logistics_service_bulletin.txt"
+#
+# ALTERNATIVES: several sources separated by '|' are all correct, and the best rank among them
+# counts. This is not a convenience: the corpus contains genuine duplicates (every product in
+# inventario_supermercado_masivo.csv appears twice with different brands, and the two space
+# manuals cover the same procedures in two languages), so a single expected source would score
+# a CORRECT retrieval as a miss. See RetrievalBenchmarkTest.rankOf.
+#
+# kind = "abstention" means NOTHING should be retrieved: the answer is not in the corpus.
+# These rows are scored apart and never enter hit@3 or MRR — see the benchmark.
+#
+# Corpus: 16 documents. 3 CSV, 6 TXT, 7 PDF. Spanish and English.
 id;question;expectedSource;kind
-Q01;What is the price of SKU-2041?;warehouse_inventory.csv (fila 1);identifier
-Q02;What is the price of SKU-2042?;warehouse_inventory.csv (fila 2);identifier
+#
+# ---------------------------------------------------------------------------------------
+# IDENTIFICADORES — la rama léxica es la única que puede resolverlos
+# ---------------------------------------------------------------------------------------
+Q01;What is the price of SKU-2041?;warehouse_inventory.csv (fila 1);identifier-en
+Q02;What is the price of SKU-2042?;warehouse_inventory.csv (fila 2);identifier-en
 Q03;SKU-2041;warehouse_inventory.csv (fila 1);bare-identifier
-Q04;Cuanto cuesta el SKU-2820?;warehouse_inventory.csv (fila 23);identifier
-Q05;¿Cuál es el precio del SKU-2041?;warehouse_inventory.csv (fila 1);identifier-crosslingual
-Q06;¿Cuántas unidades hay del Thermal Probe Calibrator?;warehouse_inventory.csv (fila 1);product-name
-Q07;What does it say about heavy pressure suits?;orbital_station_handbook.pdf;prose-en
-Q08;When is a Red Hazard Level declared?;orbital_station_handbook.pdf;prose-en
-Q09;How long can the final disembarkation last?;orbital_station_handbook.pdf;prose-en
-Q10;What precautions apply before opening a hatch?;orbital_station_handbook.pdf;paraphrase-en
-Q11;How long do I have to report a data breach?;data_protection_policy.pdf;prose-en
-Q12;How much does refrigerated storage cost?;logistics_service_bulletin.txt;prose-en
-Q13;How much is the fine for exceeding two hours?;logistics_service_bulletin.txt;prose-en
-Q14;¿Cuánto cuesta el almacenaje refrigerado?;logistics_service_bulletin.txt;crosslingual
-Q15;¿Qué dice sobre los trajes de presión pesada?;orbital_station_handbook.pdf;crosslingual
-Q16;Cuanto es el máximo de centímetros para el envío domestico?;logistics_service_bulletin.txt;crosslingual
-Q17;How much I have to pay for cebollas de 1kg?;inventario_supermercado_masivo.csv (fila 39);code-switch
+Q04;SKU-2820;warehouse_inventory.csv (fila 23);bare-identifier
+Q05;How many units of SKU-2212 are in stock?;warehouse_inventory.csv (fila 8);identifier-en
+Q06;Which warehouse holds SKU-2718?;warehouse_inventory.csv (fila 21);identifier-en
+Q07;Cuanto cuesta el SKU-2820?;warehouse_inventory.csv (fila 23);identifier-es
+Q08;¿Cuál es el precio del SKU-2041?;warehouse_inventory.csv (fila 1);identifier-crosslingual
+Q09;¿Cuántas unidades quedan del SKU-2821?;warehouse_inventory.csv (fila 24);identifier-crosslingual
+Q10;PROD-0026;inventario_supermercado_masivo.csv (fila 39);bare-identifier
+Q11;¿Qué precio tiene el PROD-0083?;inventario_supermercado_masivo.csv (fila 167);identifier-es
+Q12;¿En qué pasillo está el PROD-0143?;inventario_supermercado_masivo.csv (fila 100);identifier-es
+#
 # ---------------------------------------------------------------------------------------
-# TODO: add five or six rows from the SPANISH corpus so that the benchmark is not measured
-# almost entirely on the English documents. Take them from the missions manual, Productos.csv
-# and inventario_supermercado_masivo.csv. Suggested kinds: identifier-es, prose-es, paraphrase-es.
+# NOMBRE DE PRODUCTO — la rama densa debería bastar
 # ---------------------------------------------------------------------------------------
+Q13;¿Cuántas unidades hay del Thermal Probe Calibrator?;warehouse_inventory.csv (fila 1);product-name
+Q14;How much does the Infrared Thermal Camera cost?;warehouse_inventory.csv (fila 24);product-name
+Q15;What is the price of the Emergency Eyewash Station?;warehouse_inventory.csv (fila 15);product-name
+Q16;¿Cuánto cuesta el aceite de oliva virgen extra de 1 litro?;inventario_supermercado_masivo.csv (fila 167)|inventario_supermercado_masivo.csv (fila 168);product-name-es
+Q17;¿Qué precio tiene el café molido natural de 250 gramos?;inventario_supermercado_masivo.csv (fila 175)|inventario_supermercado_masivo.csv (fila 176);product-name-es
+Q18;¿Cuánto vale el cargador portátil de 20000 mAh?;Productos.csv (fila 23);product-name-es
+Q19;¿Qué características tiene el monitor de 27 pulgadas?;Productos.csv (fila 12);product-name-es
+Q20;¿Cuánto cuesta el disco SSD de 1TB?;Productos.csv (fila 14);product-name-es
+#
+# ---------------------------------------------------------------------------------------
+# PROSA EN INGLÉS
+# ---------------------------------------------------------------------------------------
+Q21;When is a Red Hazard Level declared?;orbital_station_handbook.pdf;prose-en
+Q22;How long can the final disembarkation last?;orbital_station_handbook.pdf;prose-en
+Q23;How often must the refresher assessment be completed?;orbital_station_handbook.pdf;prose-en
+Q24;How long is the observation window for an unknown structure?;orbital_station_handbook.pdf;prose-en
+Q25;How often are pressure suit seals replaced?;orbital_station_handbook.pdf;prose-en
+Q26;How long do I have to report a data breach?;data_protection_policy.pdf;prose-en
+Q27;How long are consignment records retained?;data_protection_policy.pdf;prose-en
+Q28;How often is restoration from backup tested?;data_protection_policy.pdf;prose-en
+Q29;How much does refrigerated storage cost?;logistics_service_bulletin.txt;prose-en
+Q30;How much is the fine for exceeding two hours?;logistics_service_bulletin.txt;prose-en
+Q31;What is the night shift surcharge?;logistics_service_bulletin.txt;prose-en
+Q32;What is the tariff for the Salamanca to Valladolid corridor?;logistics_service_bulletin.txt;prose-en
+#
+# ---------------------------------------------------------------------------------------
+# PROSA EN ESPAÑOL
+# ---------------------------------------------------------------------------------------
+Q33;¿Cada cuánto se hace la auditoría cognitiva a la inteligencia artificial de la nave?;manual_misiones_espaciales.pdf;prose-es
+Q34;¿Qué es el Protocolo Omega?;manual_misiones_espaciales.pdf;prose-es
+Q35;¿Cada cuánto se realizan las purgas de radiación de Hawking?;manual_misiones_espaciales.pdf;prose-es
+Q36;¿Cuál es la regla de oro de la exploración de superficie?;manual_misiones_espaciales.pdf;prose-es
+Q37;¿Cuántas lunas tiene Júpiter?;Planetas.pdf;prose-es
+Q38;¿Por qué a Venus se le llama el lucero del alba?;Planetas.pdf;prose-es
+Q39;¿Quién descubrió Urano y en qué año?;Planetas.pdf;prose-es
+Q40;¿Cuánta memoria RAM tiene la PlayStation 5?;PlayStation_5.pdf;prose-es
+Q41;¿Cuándo se lanzó la PS5 en España?;PlayStation_5.pdf;prose-es
+Q42;¿Cuándo se cargan las matrículas formalizadas después del día 25?;AbonoMatricula.pdf;prose-es
+Q43;¿En qué bancos se puede pagar la matrícula?;AbonoMatricula.pdf;prose-es
+Q44;¿Qué día es el examen de Inteligencia Artificial?;CONVOCATORIA_EXTRAORDINARIA_JUNIO_2023-2024.pdf;prose-es
+Q45;¿En qué aula se examina Arquitectura de Computadores?;CONVOCATORIA_EXTRAORDINARIA_JUNIO_2023-2024.pdf;prose-es
+Q46;¿Cómo se llama el barco de la expedición que encontró la especie bioluminiscente?;noticia_ciencia.txt;prose-es
+Q47;¿Dónde se celebró el torneo de ajedrez rápido?;noticia_deportes.txt;prose-es
+Q48;¿Cómo se llama el procesador cuántico para móviles?;noticia_tecnologia.txt;prose-es
+Q49;¿Cuántas personas murieron en el derrumbe de la discoteca?;discotecaAccidente.txt;prose-es
+Q50;¿Qué teatro se ha restaurado con impresión 3D?;noticia_cultura.txt;prose-es
+#
+# ---------------------------------------------------------------------------------------
+# PARÁFRASIS — ninguna palabra clave en común con el documento
+# ---------------------------------------------------------------------------------------
+Q51;What precautions apply before opening a hatch?;orbital_station_handbook.pdf;paraphrase-en
+Q52;Can one person alone declare a red alert?;orbital_station_handbook.pdf;paraphrase-en
+Q53;¿Qué pasa si la nave se despresuriza?;manual_misiones_espaciales.pdf;paraphrase-es
+Q54;¿Qué planeta gira al revés que los demás?;Planetas.pdf;paraphrase-es
+Q55;¿Se puede pagar la carrera poco a poco en vez de todo de golpe?;AbonoMatricula.pdf;paraphrase-es
+#
+# ---------------------------------------------------------------------------------------
+# TRANSLINGÜES — pregunta en un idioma, documento en el otro
+# ---------------------------------------------------------------------------------------
+Q56;¿Cuánto cuesta el almacenaje refrigerado?;logistics_service_bulletin.txt;crosslingual-es2en
+Q57;¿Cuántas horas hay para notificar una brecha de datos personales?;data_protection_policy.pdf;crosslingual-es2en
+Q58;Cuanto es el máximo de centímetros para el envío domestico?;logistics_service_bulletin.txt;crosslingual-es2en
+Q59;¿Cuánto dura cada etapa de la descompresión controlada?;orbital_station_handbook.pdf;crosslingual-es2en
+Q60;How long does the quarantine in the medical bay last?;manual_misiones_espaciales.pdf;crosslingual-en2es
+Q61;What is heuristic drift and when is the AI reset?;manual_misiones_espaciales.pdf;crosslingual-en2es
+Q62;How many moons does Uranus have?;Planetas.pdf;crosslingual-en2es
+Q63;How much RAM does the PlayStation 5 have?;PlayStation_5.pdf;crosslingual-en2es
+#
+# ---------------------------------------------------------------------------------------
+# MEZCLA DE IDIOMAS DENTRO DE LA MISMA PREGUNTA
+# ---------------------------------------------------------------------------------------
+Q64;How much I have to pay for cebollas de 1kg?;inventario_supermercado_masivo.csv (fila 39)|inventario_supermercado_masivo.csv (fila 40);code-switch
+Q65;Dime el price del Barcode Scanner Gun;warehouse_inventory.csv (fila 12);code-switch
+Q66;What is el Nivel de Peligro Rojo?;manual_misiones_espaciales.pdf|orbital_station_handbook.pdf;code-switch
+#
+# ---------------------------------------------------------------------------------------
+# DISTRACTORES — el término aparece en varios documentos con significados distintos.
+# Estos son los casos que de verdad separan una recuperación buena de una mediocre.
+# ---------------------------------------------------------------------------------------
+Q67;¿A qué distancia mínima deben operar los ingenieros de minería de asteroides?;manual_misiones_espaciales.pdf;distractor-numeric
+Q68;How close may the crew approach an artificial structure of unknown origin?;orbital_station_handbook.pdf;distractor-numeric
+Q69;¿Cuánto dura la cuarentena en la bahía médica de la nave?;manual_misiones_espaciales.pdf;distractor-72h
+Q70;For how long does the emergency beacon transmit on internal power?;orbital_station_handbook.pdf;distractor-72h
+Q71;What is the price of the Thermal Probe Housing?;warehouse_inventory.csv (fila 3);distractor-family
+Q72;What is the price of the Thermal Probe Sensor?;warehouse_inventory.csv (fila 2);distractor-family
+Q73;¿Qué dice sobre los trajes de presión pesada?;manual_misiones_espaciales.pdf|orbital_station_handbook.pdf;distractor-bilingual
+Q74;What does it say about heavy pressure suits?;orbital_station_handbook.pdf|manual_misiones_espaciales.pdf;distractor-bilingual
+#
+# ---------------------------------------------------------------------------------------
+# CONTENIDO DUPLICADO DENTRO DEL CORPUS
+# ---------------------------------------------------------------------------------------
+Q75;¿Qué porcentaje de la superficie de la Tierra es agua?;Planetas.pdf;near-duplicate
+Q76;¿Cuánto cuesta el kéfir de 500ml?;inventario_supermercado_masivo.csv (fila 1)|inventario_supermercado_masivo.csv (fila 2);near-duplicate
+#
+# ---------------------------------------------------------------------------------------
+# ABSTENCIÓN — la respuesta NO está en el corpus. Lo correcto es no recuperar nada.
+# No entran en hit@3 ni en MRR: se puntúan aparte como tasa de abstención correcta.
+# ---------------------------------------------------------------------------------------
+Q77;Hola;;abstention
+Q78;buenos días, ¿qué tal?;;abstention
+Q79;What is the price of SKU-9999?;;abstention
+Q80;¿Cuánto cuesta el PROD-9999?;;abstention
+Q81;¿Quién ganó el Mundial de fútbol de 2038?;;abstention
+Q82;What is the capital of Mongolia?;;abstention
+Q83;¿Cuál es la política de teletrabajo de la empresa?;;abstention
+Q84;How many employees does Northwind Logistics have?;;abstention
+Q85;¿Cuánto pesa el Monte Olimpo?;;abstention
+Q86;What is the warranty period for the PlayStation 5?;;abstention
+Q87;¿A qué hora es el examen de Mecánica Cuántica?;;abstention
+Q88;Gracias, muy amable;;abstention

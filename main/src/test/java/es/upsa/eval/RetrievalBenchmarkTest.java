@@ -54,12 +54,10 @@ class RetrievalBenchmarkTest {
     /** Positions that count as a hit. Mirrors rag.retriever.max-results. */
     private static final int TOP_K = 3;
 
-    /**
 
-    private static final String GOLDEN_SET = "/eval/golden-set.csv";
-
-    /** Semicolon, not comma: questions contain commas and Excel opens it straight away. */
-    private static final String CSV_SEPARATOR = ";";
+     /** Semicolon, not comma: questions contain commas and Excel opens it straight away. */
+     private static final String GOLDEN_SET = "/eval/golden-set.csv";
+     private static final String CSV_SEPARATOR = ";";
 
     @Inject
     DenseSearch dense;
@@ -88,9 +86,16 @@ class RetrievalBenchmarkTest {
     /** hit@k and MRR for one strategy over a set of outcomes. */
     private record Metric(String name, double hitRate, double mrr, int total) {}
 
+    /** Rows whose expected answer is NOT in the corpus. Scored apart: see measureAbstention. */
+    private static final String ABSTENTION = "abstention";
+
     @Test
     void compareTheThreeRetrievalStrategies() throws IOException {
-        List<GoldenCase> goldenSet = loadGoldenSet();
+        List<GoldenCase> everything = loadGoldenSet();
+        List<GoldenCase> goldenSet = everything.stream()
+                .filter(c -> !ABSTENTION.equals(c.kind())).toList();
+        List<GoldenCase> abstentions = everything.stream()
+                .filter(c -> ABSTENTION.equals(c.kind())).toList();
         assertTrue(goldenSet.size() >= 10, "the golden set is too small to mean anything");
 
         List<Outcome> outcomes = new ArrayList<>();
@@ -108,12 +113,15 @@ class RetrievalBenchmarkTest {
                     rankOf(fusedChunks, testCase.expectedSource())));
         }
 
+        Abstention abstention = measureAbstention(abstentions);
+
         String timestamp = LocalDateTime.now()
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
 
-        Path markdown = write("retrieval-benchmark.md", buildMarkdown(outcomes, timestamp));
-        Path csv = write("retrieval-benchmark.csv", buildCsv(outcomes));
-        System.out.print(buildConsoleSummary(outcomes, timestamp, markdown, csv));
+        Path markdown = write("retrieval-benchmark.md",
+                buildMarkdown(outcomes, abstention, timestamp));
+        Path csv = write("retrieval-benchmark.csv", buildCsv(outcomes, abstention));
+        System.out.print(buildConsoleSummary(outcomes, abstention, timestamp, markdown, csv));
 
         Metric denseOnly = metricOf("dense only", outcomes, Outcome::denseRank);
         Metric hybrid = metricOf("hybrid (RRF)", outcomes, Outcome::hybridRank);
@@ -142,16 +150,68 @@ class RetrievalBenchmarkTest {
                 "the lexical branch is matching a bare greeting");
     }
 
-    // ------------------------------------------------------------------ metrics
+    /** How many of the unanswerable questions correctly retrieved nothing. */
+    private record Abstention(int total, int correct, List<String> leaks) {
+        double rate() { return total == 0 ? 1.0 : (double) correct / total; }
+    }
 
-    /** 1-based position of the expected source in the list, or 0 when it is absent. */
-    private static int rankOf(List<Chunk> chunks, String expectedSource) {
-        for (int i = 0; i < chunks.size(); i++) {
-            if (chunks.get(i).source().contains(expectedSource)) {
-                return i + 1;
+    /**
+     * Runs the questions whose answer is NOT in the corpus and counts how often the system
+     * correctly retrieves nothing.
+     *
+     * Deliberately NOT folded into hit@3: a question with no correct source would score as a
+     * permanent miss and drag the headline number down for a reason that has nothing to do with
+     * retrieval quality. It is the OPPOSITE capability and it deserves its own number — a system
+     * that never abstains has perfect recall and is useless, because every answer it gives is
+     * built on whatever happened to be closest.
+     */
+    private Abstention measureAbstention(List<GoldenCase> cases) {
+        int correct = 0;
+        List<String> leaks = new ArrayList<>();
+        for (GoldenCase testCase : cases) {
+            List<Chunk> denseChunks = dense.search(testCase.question());
+            List<Chunk> lexicalChunks = lexical.search(testCase.question(), candidates).chunks();
+            List<RrfFusion.Result> fused = fusion.fuse(denseChunks, lexicalChunks, TOP_K);
+            if (fused.isEmpty()) {
+                correct++;
+            } else {
+                leaks.add(String.format("%s  %-38s -> %d chunks, first: %s",
+                        testCase.id(), truncate(testCase.question(), 38),
+                        fused.size(), fused.get(0).chunk().source()));
             }
         }
-        return 0;
+        return new Abstention(cases.size(), correct, leaks);
+    }
+
+    // ------------------------------------------------------------------ metrics
+
+    /**
+     * 1-based position of the expected source in the list, or 0 when it is absent.
+     *
+     * expectedSource may list several sources separated by '|', and the BEST rank among them
+     * counts. This is not a convenience: the corpus contains genuine duplicates — every product
+     * in inventario_supermercado_masivo.csv appears twice under different brands, and the two
+     * space manuals document the same procedures in Spanish and in English. With a single
+     * expected source, retrieving the OTHER equally correct row would be scored as a miss and
+     * the benchmark would be punishing the system for being right.
+     */
+    private static int rankOf(List<Chunk> chunks, String expectedSource) {
+        int best = 0;
+        for (String expected : expectedSource.split("\\|")) {
+            String wanted = expected.trim();
+            if (wanted.isEmpty()) {
+                continue;
+            }
+            for (int i = 0; i < chunks.size(); i++) {
+                if (chunks.get(i).source().contains(wanted)) {
+                    if (best == 0 || i + 1 < best) {
+                        best = i + 1;
+                    }
+                    break;
+                }
+            }
+        }
+        return best;
     }
 
     private static Metric metricOf(String name, List<Outcome> outcomes,
@@ -186,8 +246,8 @@ class RetrievalBenchmarkTest {
      * the files instead, so the console stays readable. ASCII only, to keep the columns aligned
      * whatever the terminal encoding is.
      */
-    private String buildConsoleSummary(List<Outcome> outcomes, String timestamp,
-                                       Path markdown, Path csv) {
+    private String buildConsoleSummary(List<Outcome> outcomes, Abstention abstention,
+                                       String timestamp, Path markdown, Path csv) {
         String rule = "=".repeat(74);
         StringBuilder out = new StringBuilder("\n").append(rule).append('\n');
         out.append(String.format("  RETRIEVAL BENCHMARK  |  %s  |  %d questions  |  hit@%d%n",
@@ -232,6 +292,14 @@ class RetrievalBenchmarkTest {
                         outcome.testCase().id(), outcome.testCase().kind(),
                         truncate(outcome.testCase().question(), 36)));
             }
+        }
+
+        out.append(String.format("%n  ABSTENTION (questions with no answer in the corpus)%n"));
+        out.append("  ").append("-".repeat(70)).append('\n');
+        out.append(String.format("  correctly retrieved nothing: %d of %d  (%.2f)%n",
+                abstention.correct(), abstention.total(), abstention.rate()));
+        for (String leak : abstention.leaks()) {
+            out.append("  ").append(leak).append('\n');
         }
 
         out.append("\n  FILES\n");
@@ -301,7 +369,7 @@ class RetrievalBenchmarkTest {
 
     /** Markdown with the three tables, ready to paste into the README. */
     /** The three tables, ready to paste into the README. */
-    private String buildMarkdown(List<Outcome> outcomes, String timestamp) {
+    private String buildMarkdown(List<Outcome> outcomes, Abstention abstention, String timestamp) {
         StringBuilder out = new StringBuilder("# Retrieval benchmark\n\n");
         out.append("Run: ").append(timestamp)
                 .append(" | questions: ").append(outcomes.size())
@@ -334,6 +402,21 @@ class RetrievalBenchmarkTest {
                 "dense hit@" + TOP_K, "lexical hit@" + TOP_K, "hybrid hit@" + TOP_K,
                 "dense MRR", "lexical MRR", "hybrid MRR"), byKind));
 
+        out.append("\n## Abstention\n\n");
+        out.append("Questions whose answer is NOT in the corpus. Retrieving nothing is the ")
+                .append("correct behaviour; these never enter hit@").append(TOP_K)
+                .append(" or MRR.\n\n");
+        out.append(markdownTable(List.of("questions", "correct", "rate"),
+                List.of(List.of(String.valueOf(abstention.total()),
+                        String.valueOf(abstention.correct()),
+                        decimals(abstention.rate(), 2)))));
+        if (!abstention.leaks().isEmpty()) {
+            out.append("\nRetrieved something when it should not have:\n\n");
+            for (String leak : abstention.leaks()) {
+                out.append("- `").append(leak).append("`\n");
+            }
+        }
+
         out.append("\n## Question by question\n\n");
         List<List<String>> perQuestion = new ArrayList<>();
         for (Outcome outcome : outcomes) {
@@ -353,7 +436,7 @@ class RetrievalBenchmarkTest {
     }
 
     /** One row per question, raw ranks, for a spreadsheet. Rank 0 means "not retrieved". */
-    private String buildCsv(List<Outcome> outcomes) {
+    private String buildCsv(List<Outcome> outcomes, Abstention abstention) {
         StringBuilder out = new StringBuilder();
         out.append(String.join(CSV_SEPARATOR,
                 "id", "kind", "question", "expected_source",
@@ -372,6 +455,10 @@ class RetrievalBenchmarkTest {
                     hit(outcome.lexicalRank()),
                     hit(outcome.hybridRank()))).append('\n');
         }
+        out.append(String.join(CSV_SEPARATOR, "ABSTENTION", "abstention",
+                "correctly retrieved nothing",
+                abstention.correct() + " of " + abstention.total(),
+                "", "", "", "", "", decimals(abstention.rate(), 2))).append('\n');
         return out.toString();
     }
 

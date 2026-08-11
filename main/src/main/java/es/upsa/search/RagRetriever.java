@@ -1,5 +1,6 @@
 package es.upsa.search;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -46,13 +47,51 @@ public class RagRetriever {
     int maxResults;
 
     /**
+     * Un fragmento tal y como llegó al modelo, con todo lo necesario para
+     * justificar la respuesta ante quien la lee.
+     *
+     * Lleva el ORIGEN y la PUNTUACIÓN, y no solo el nombre del fichero, porque
+     * son los dos datos que responden a la pregunta que de verdad importa:
+     * "¿por qué el sistema eligió este fragmento?". Un chunk con origen "D+L"
+     * lo encontraron las dos ramas por caminos independientes —el significado y
+     * la literalidad— y esa coincidencia es la tesis del trabajo hecha visible.
+     * Hasta ahora esta información existía, pero solo en el log del servidor.
+     *
+     * @param source procedencia formateada por Sources.format
+     * @param origin "D" (densa), "L" (léxica) o "D+L" (ambas)
+     * @param score  puntuación RRF acumulada
+     * @param text   el fragmento literal que se le pasó al modelo
+     */
+    public record Retrieved(String source, String origin, double score, String text) {}
+
+    /**
+     * El contexto listo para el prompt Y los fragmentos que lo componen.
+     *
+     * Van juntos a propósito: son el mismo resultado visto de dos maneras, y
+     * separarlos obligaría a recuperar dos veces o a recomponer fuera lo que
+     * aquí ya está construido.
+     */
+    public record RetrievedContext(String text, List<Retrieved> chunks) {
+
+        /** Sin contexto: el texto es el aviso que la regla 4 del prompt cita literalmente. */
+        static RetrievedContext empty() {
+            return new RetrievedContext(NO_CONTEXT, List.of());
+        }
+
+        /** ¿Se respondió sin ningún fragmento recuperado? La interfaz lo dice en voz alta. */
+        public boolean isEmpty() {
+            return chunks.isEmpty();
+        }
+    }
+
+    /**
      * Devuelve el contexto formateado (con su procedencia) listo para inyectar
      * en el system message. Una sola entrada de log por question, con todo lo
      * necesario para explicar el resultado: tiempo, modelo de embeddings,
      * candidatos de cada rama, CONSULTA LÉXICA enviada y origin de cada
      * chunk — D (densa), L (léxica) o D+L (ambas).
      */
-    public String retrieveContext(String question) {
+    public RetrievedContext retrieveContext(String question) {
         long t0 = System.nanoTime();
 
         List<Chunk> densos = dense.search(question);
@@ -71,22 +110,23 @@ public class RagRetriever {
 
         if (top.isEmpty()) {
             log.debug("{} -> 0 chunks (sin contexto relevante)", header);
-            return NO_CONTEXT;
+            return RetrievedContext.empty();
         }
 
         StringBuilder context = new StringBuilder();
         StringBuilder summary = new StringBuilder(header)
                 .append(" -> ").append(top.size()).append(" chunks:");
-
+        List<Retrieved> retrieved = new ArrayList<>();
         for (RrfFusion.Result r : top) {
             summary.append(String.format("%n   [%-3s %.4f] %-40s %s",
                     r.origin(), r.score(), r.chunk().source(),
                     truncate(r.chunk().text())));
             context.append("- [").append(r.chunk().source()).append("] ")
                     .append(r.chunk().text()).append('\n');
+            retrieved.add(new Retrieved(r.chunk().source(), r.origin(), r.score(), r.chunk().text()));
         }
         log.debug("{}", summary);
-        return context.toString();
+        return new RetrievedContext(context.toString(), List.copyOf(retrieved));
     }
 
     /** Aplana y trunca para que cada chunk ocupe UNA línea del log. */

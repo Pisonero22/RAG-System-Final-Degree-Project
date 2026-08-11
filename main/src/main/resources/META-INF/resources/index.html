@@ -2,416 +2,1023 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Quarkus Chat!</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.24.0/css/patternfly.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.24.0/css/patternfly-additions.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RAG · Sistema de recuperación híbrida</title>
+
+    <!--
+      Página completa del cliente: sin jQuery, sin Bootstrap, sin PatternFly y SIN NINGUNA
+      petición a un CDN. Las tres librerías anteriores sumaban ~300 KB descargados de
+      cloudflare para, en la práctica, hacer querySelector y añadir clases — y además dejaban
+      la interfaz inservible detrás de un cortafuegos, cosa que contradecía a deploySinConexion.sh.
+
+      Lo que sí hace esta versión y la anterior no: enseñar de dónde sale cada respuesta.
+      Bajo cada mensaje del asistente aparecen las fuentes y, plegada, la traza de recuperación
+      con el ORIGEN de cada fragmento (densa, léxica o ambas) y su puntuación RRF. Esa
+      información ya existía en el log del servidor; aquí se le enseña a quien lee la respuesta,
+      que es quien necesita poder distinguir una cita de una alucinación.
+    -->
 
     <style>
+        /* ---------------------------------------------------------------- variables */
+        :root {
+            --bg:        #f4f6f8;
+            --surface:   #ffffff;
+            --surface-2: #f0f2f5;
+            --ink:       #14181d;
+            --ink-soft:  #4a545f;
+            --muted:     #78838f;
+            --line:      #dde2e8;
+            --accent:    #1f5fa8;
+            --accent-ink:#ffffff;
+            --user-bg:   #1f5fa8;
+            --user-ink:  #ffffff;
+            --ok:        #2e7d5b;
+            --warn:      #9a6b12;
+            --danger:    #b3352c;
+            --dense:     #1f5fa8;   /* D   */
+            --lexical:   #8a5a12;   /* L   */
+            --both:      #2e7d5b;   /* D+L */
+            --radius:    10px;
+            --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+            --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg:#121519; --surface:#1a1f25; --surface-2:#20262d; --ink:#e6eaee;
+                --ink-soft:#b6c0ca; --muted:#8b96a2; --line:#2c343d; --accent:#5b9bd8;
+                --accent-ink:#0d1116; --user-bg:#2b5f96; --user-ink:#f2f6fa;
+                --ok:#5cc191; --warn:#d9a441; --danger:#e0736a;
+                --dense:#5b9bd8; --lexical:#d9a441; --both:#5cc191;
+            }
+        }
+
+        /* ---------------------------------------------------------------- estructura */
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
         body {
-            background-color: #f9f9f9;
-            font-family: "Segoe UI", sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            font-family: var(--sans);
+            font-size: 15px;
+            line-height: 1.55;
+            color: var(--ink);
+            background: var(--bg);
+            -webkit-font-smoothing: antialiased;
         }
 
-        .chat-container {
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-            padding: 20px;
-            margin-top: 20px;
+        /* ---------------------------------------------------------------- cabecera */
+        .topbar {
+            display: flex; align-items: center; gap: 16px;
+            padding: 10px 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--line);
+            flex-wrap: wrap;
+        }
+        .brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; min-width: 0; }
+        .brand .logo {
+            font-family: var(--mono); font-weight: 700; font-size: 15px; letter-spacing: .08em;
+            padding: 3px 8px; border-radius: 6px;
+            background: var(--accent); color: var(--accent-ink);
+        }
+        .brand .sub { color: var(--muted); font-size: 13px; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; }
+        @media (max-width: 720px) { .brand .sub { display: none; } }
+
+        .topbar-right { display: flex; align-items: center; gap: 14px; }
+
+        .status { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); }
+        .status i {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--danger); flex: none;
+            transition: background .2s ease;
+        }
+        .status.on i { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+
+        .field { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); }
+        select, input[type=text], textarea {
+            font: inherit; color: var(--ink); background: var(--surface);
+            border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px;
+        }
+        select:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-visible {
+            outline: 2px solid var(--accent); outline-offset: 1px;
+        }
+        select { font-size: 13px; max-width: 240px; }
+
+        /* menú de administración: <details> nativo, sin una línea de JS para abrirlo */
+        .menu { position: relative; }
+        .menu > summary {
+            display: inline-block; list-style: none; cursor: pointer; user-select: none;
+            padding: 4px 10px; border-radius: 8px; border: 1px solid var(--line);
+            color: var(--ink-soft); font-size: 15px; line-height: 1.2;
+        }
+        .menu > summary::-webkit-details-marker { display: none; }
+        .menu > summary:hover { background: var(--surface-2); }
+        .menu-panel {
+            position: absolute; right: 0; top: calc(100% + 8px); z-index: 20;
+            width: 280px; padding: 14px;
+            background: var(--surface); border: 1px solid var(--line);
+            border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0,0,0,.14);
+        }
+        .menu-title { margin: 0 0 10px; font-size: 12px; letter-spacing: .06em;
+            text-transform: uppercase; color: var(--muted); }
+        .menu-panel hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
+        .menu-panel input[type=file] { width: 100%; font-size: 12px; margin-bottom: 8px; }
+
+        /* ---------------------------------------------------------------- botones */
+        .btn {
+            font: inherit; font-size: 14px; cursor: pointer;
+            padding: 7px 14px; border-radius: 8px;
+            border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+            transition: background .15s ease, opacity .15s ease;
+        }
+        .btn:hover:not(:disabled) { background: var(--surface-2); }
+        .btn:disabled { opacity: .45; cursor: not-allowed; }
+        .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+        .btn-primary:hover:not(:disabled) { filter: brightness(1.08); background: var(--accent); }
+        .btn-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+        .btn-block { display: block; width: 100%; margin-top: 8px; text-align: left; }
+
+        /* ---------------------------------------------------------------- puerta de entrada */
+        main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+        .gate {
+            margin: auto; padding: 40px 24px; max-width: 460px; width: 100%; text-align: center;
+        }
+        .gate h1 { font-size: 20px; margin: 0 0 6px; font-weight: 600; }
+        .gate p { color: var(--muted); font-size: 14px; margin: 0 0 22px; }
+        .gate-row { display: flex; gap: 10px; }
+        .gate-row input { flex: 1; }
+        .hint { font-size: 13px; color: var(--muted); margin-top: 14px; min-height: 20px; }
+        /* Al reconectar, la puerta se encoge a una barra: la conversación anterior sigue visible. */
+        .gate.compact { margin: 0 auto; padding: 12px 20px 4px; max-width: 780px; }
+        .gate.compact h1, .gate.compact > p:not(.hint) { display: none; }
+        .gate.compact .hint { margin-top: 8px; }
+
+        /* ---------------------------------------------------------------- chat */
+        .chat {
+            flex: 1; min-height: 0; overflow-y: auto;
+            padding: 24px 20px 8px;
+            display: flex; flex-direction: column; gap: 18px;
+            scroll-behavior: smooth;
+        }
+        .turn { display: flex; flex-direction: column; max-width: 780px; width: 100%; margin: 0 auto; }
+        .turn.user { align-items: flex-end; }
+
+        .bubble {
+            padding: 11px 15px; border-radius: 14px; max-width: 88%;
+            background: var(--surface); border: 1px solid var(--line);
+            overflow-wrap: anywhere;
+        }
+        .turn.user .bubble {
+            background: var(--user-bg); color: var(--user-ink);
+            border-color: transparent; border-bottom-right-radius: 5px;
+        }
+        .turn.assistant .bubble { border-bottom-left-radius: 5px; }
+
+        .who { font-size: 12px; color: var(--muted); margin: 0 4px 5px; font-family: var(--mono); }
+        .meta { font-size: 12px; color: var(--muted); margin: 6px 4px 0; font-family: var(--mono); }
+
+        /* markdown dentro de la burbuja */
+        .bubble > :first-child { margin-top: 0; }
+        .bubble > :last-child { margin-bottom: 0; }
+        .bubble p { margin: 0 0 .7em; }
+        .bubble h3, .bubble h4, .bubble h5, .bubble h6 { margin: .9em 0 .4em; font-size: 1em; font-weight: 650; }
+        .bubble ul, .bubble ol { margin: 0 0 .7em; padding-left: 1.35em; }
+        .bubble li { margin: .18em 0; }
+        .bubble code { font-family: var(--mono); font-size: .88em;
+            background: var(--surface-2); padding: .12em .38em; border-radius: 4px; }
+        .turn.user .bubble code { background: rgba(255,255,255,.18); }
+        .bubble pre {
+            background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px;
+            padding: 10px 12px; overflow-x: auto; margin: 0 0 .7em;
+        }
+        .bubble pre code { background: none; padding: 0; font-size: .86em; }
+        .bubble a { color: var(--accent); }
+        .bubble blockquote { margin: 0 0 .7em; padding-left: .8em;
+            border-left: 3px solid var(--line); color: var(--ink-soft); }
+
+        /* mensajes del sistema */
+        .sysmsg {
+            max-width: 780px; width: 100%; margin: 0 auto;
+            font-size: 13px; color: var(--muted); font-style: italic; text-align: center;
+        }
+        .sysmsg.err { color: var(--danger); font-style: normal; }
+
+        /* ---------------------------------------------------------------- fuentes */
+        .sources { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 4px 0; }
+        .chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 12px; font-family: var(--mono);
+            padding: 3px 9px 3px 3px; border-radius: 999px;
+            background: var(--surface); border: 1px solid var(--line); color: var(--ink-soft);
+        }
+        .chip .kind {
+            font-size: 10px; font-weight: 700; letter-spacing: .04em;
+            padding: 2px 6px; border-radius: 999px;
+            background: var(--surface-2); color: var(--muted);
+        }
+        .chip .kind.pdf { color: var(--danger); }
+        .chip .kind.csv { color: var(--ok); }
+        .chip .kind.txt { color: var(--accent); }
+        .chip .loc { color: var(--muted); }
+
+        .no-context {
+            margin: 9px 4px 0; font-size: 12.5px; color: var(--warn);
+            display: flex; align-items: center; gap: 7px;
+        }
+        .no-context::before {
+            content: "!"; flex: none;
+            width: 15px; height: 15px; border-radius: 50%;
+            border: 1.5px solid currentColor; font-size: 10px; font-weight: 700;
+            display: grid; place-items: center;
         }
 
-        #chat {
-            resize: none;
-            overflow-y: auto;
-            height: 300px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            padding: 1em;
-            background-color: #f4f4f4;
-            font-size: 14px;
+        /* ---------------------------------------------------------------- traza */
+        .trace { margin: 9px 4px 0; font-size: 13px; }
+        .trace > summary {
+            cursor: pointer; user-select: none; color: var(--muted);
+            font-family: var(--mono); font-size: 12px; padding: 2px 0;
         }
-
-        .user {
-            font-weight: bold;
-            color: #007bff;
+        .trace > summary:hover { color: var(--ink-soft); }
+        .trace-body {
+            margin-top: 8px; border: 1px solid var(--line); border-radius: var(--radius);
+            background: var(--surface); overflow: hidden;
         }
-
-        .system-user {
-            font-weight: bold;
-            color: deeppink;
+        .frags-wrap { overflow-x: auto; }
+        table.frags { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        .frags th {
+            text-align: left; font-weight: 600; font-size: 10.5px;
+            letter-spacing: .06em; text-transform: uppercase; white-space: nowrap;
+            color: var(--muted); padding: 8px 11px;
+            background: var(--surface-2); border-bottom: 1px solid var(--line);
         }
-
-        .system-message {
-            font-style: italic;
-            color: gray;
+        .frags td {
+            padding: 9px 11px; vertical-align: top; border-top: 1px solid var(--line);
+            font-family: var(--mono); line-height: 1.5;
         }
-
-        input[type="text"] {
-            padding: 8px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
+        .frags tbody tr:first-child > td { border-top: 0; }
+        .frags tbody tr.row { cursor: pointer; }
+        .frags tbody tr.row:hover > td { background: var(--surface-2); }
+        .origin {
+            font-weight: 700; font-size: 11px; letter-spacing: .04em;
+            padding: 2px 7px; border-radius: 5px; cursor: help;
+            border: 1px solid currentColor;
         }
-
-        button {
-            margin-left: 10px;
-            border-radius: 6px;
+        .origin.d   { color: var(--dense);   }
+        .origin.l   { color: var(--lexical); }
+        .origin.dl  { color: var(--both);    }
+        .c-origin { white-space: nowrap; }
+        .c-src    { color: var(--ink-soft); overflow-wrap: break-word; min-width: 200px; }
+        .c-src .loc { display: block; color: var(--muted); }
+        .c-score  { color: var(--muted); text-align: right; white-space: nowrap; }
+        .c-frag   { color: var(--ink-soft); overflow-wrap: anywhere; min-width: 210px; }
+        .c-frag::after { content: "  ⌄"; color: var(--muted); }
+        tr.row.open .c-frag::after { content: "  ⌃"; }
+        .frags tr.full > td { background: var(--surface-2); padding-top: 0; }
+        .full-text {
+            max-height: 220px; overflow-y: auto; padding: 9px 11px;
+            background: var(--surface); border: 1px solid var(--line); border-radius: 7px;
+            font-size: 12px; color: var(--ink-soft);
+            white-space: pre-wrap; overflow-wrap: anywhere;
         }
+        .legend { padding: 9px 12px; border-top: 1px solid var(--line);
+            background: var(--surface-2); color: var(--muted); font-size: 11.5px; }
 
-        .navbar-pf {
-            background-color: #292e34;
-            color: white;
+        /* ---------------------------------------------------------------- escribiendo */
+        .dots { display: inline-flex; gap: 4px; padding: 3px 0; }
+        .dots i {
+            width: 6px; height: 6px; border-radius: 50%; background: var(--muted);
+            animation: blink 1.3s infinite ease-in-out;
         }
+        .dots i:nth-child(2) { animation-delay: .18s; }
+        .dots i:nth-child(3) { animation-delay: .36s; }
+        @keyframes blink { 0%, 70%, 100% { opacity: .25; } 35% { opacity: 1; } }
+        @media (prefers-reduced-motion: reduce) { .dots i { animation: none; opacity: .55; } }
 
-        .navbar-brand p {
-            color: white;
-            font-size: 18px;
-            margin-top: 12px;
+        /* ---------------------------------------------------------------- redactor */
+        .composer {
+            display: flex; gap: 10px; align-items: flex-end;
+            padding: 12px 20px 16px;
+            border-top: 1px solid var(--line); background: var(--surface);
         }
-        .upload-btn {
-            background-color: #17a2b8;
-            color: white;
-            font-weight: bold;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 4px 6px rgba(0, 123, 255, 0.1);
-            font-size: 13px;
-            padding: 6px 12px;
+        .composer-inner { display: flex; gap: 10px; align-items: flex-end;
+            max-width: 780px; width: 100%; margin: 0 auto; }
+        .composer textarea {
+            flex: 1; resize: none; max-height: 160px; line-height: 1.5; padding: 9px 12px;
         }
-
-        .upload-btn:hover {
-            background-color: #138496;
-            transform: scale(1.05);
-            color: white;
-        }
-
-
+        [hidden] { display: none !important; }
     </style>
 </head>
 
 <body>
-<nav class="navbar navbar-default navbar-pf">
-    <div class="navbar-header">
-        <a class="navbar-brand" href="/">
-            <p><strong>TFG CHAT</strong></p>
-        </a>
-    </div>
-    <div class="nav navbar-nav navbar-right" style="padding: 12px 20px;">
-        <label for="llm-select" style="color: white; margin-right: 10px;">Modelo:</label>
-        <select id="llm-select" class="form-control" style="display: inline-block; width: auto;">
-            <option value="" disabled selected>Selecciona un modelo</option>
-            <!-- Las opciones se cargan desde /service/models con los modelos REALES
-                 configurados: si cambias OLLAMA_CHAT_MODEL, el desplegable lo refleja. -->
-        </select>
-    </div>
-</nav>
 
-
-<div class="container chat-container">
-
-    <div class="row form-group">
-        <div class="col-md-4">
-            <input id="name" class="form-control" type="text" placeholder="Tu nombre">
-        </div>
-        <div class="col-md-2">
-            <button id="connect" class="btn btn-success btn-block">Conectar</button>
-        </div>
+<header class="topbar">
+    <div class="brand">
+        <span class="logo">RAG</span>
+        <span class="sub">Recuperación híbrida sobre corpus local</span>
     </div>
 
-    <div class="row form-group">
-        <div class="col-md-12">
-            <div id="chat"></div>
-        </div>
+    <div class="topbar-right">
+        <span id="status" class="status"><i></i><span id="status-text">Desconectado</span></span>
+
+        <label class="field">
+            Modelo
+            <!-- Se rellena desde /service/models con los modelos REALES configurados:
+                 si cambias GPTOSS_CHAT_MODEL, el desplegable lo refleja sin tocar el HTML. -->
+            <select id="model"><option value="" disabled selected>cargando…</option></select>
+        </label>
+
+        <details class="menu" id="admin-menu">
+            <summary title="Administración">&#8942;</summary>
+            <div class="menu-panel">
+                <p class="menu-title">Administración</p>
+                <input type="file" id="file" accept=".pdf,.txt,.csv">
+                <button id="upload" class="btn btn-block" disabled>Subir e indexar</button>
+                <hr>
+                <button id="clean" class="btn btn-block">Limpiar subidas</button>
+                <button id="reset" class="btn btn-block btn-danger">Reindexar corpus</button>
+            </div>
+        </details>
     </div>
+</header>
 
-    <div class="row form-group">
-        <div class="col-md-6">
-            <input id="msg" class="form-control" type="text" placeholder="Escribe tu mensaje">
+<main>
+    <section class="gate" id="gate">
+        <h1>Conéctate para empezar</h1>
+        <p>Elige un modelo, escribe un nombre y pregunta por el contenido del corpus.</p>
+        <div class="gate-row">
+            <input type="text" id="name" placeholder="Tu nombre" autocomplete="off">
+            <button id="connect" class="btn btn-primary" disabled>Conectar</button>
         </div>
-        <div class="col-md-2">
-            <button id="send" class="btn btn-primary btn-block" disabled>Enviar</button>
-        </div>
-        <div class="col-md-2">
-            <button id="reset" class="btn btn-danger btn-block">Reset Storage</button>
-        </div>
-        <div class="col-md-2">
-            <button id="clean-uploads" class="btn btn-default btn-block">Limpiar subidas</button>
-        </div>
+        <p class="hint" id="hint"></p>
+    </section>
+
+    <div class="chat" id="chat" hidden></div>
+</main>
+
+<footer class="composer" id="composer" hidden>
+    <div class="composer-inner">
+        <textarea id="msg" rows="1"
+                  placeholder="Escribe tu pregunta…    Enter envía · Mayús+Enter salta de línea"></textarea>
+        <button id="send" class="btn btn-primary" disabled>Enviar</button>
     </div>
-    <div class="row form-group" style="margin-top: 10px;">
-        <div class="col-md-12 text-right">
-            <input type="file" id="file-upload"
-                   class="form-control input-sm"
-                   accept=".pdf,.txt,.csv"
-                   style="font-size: 13px; display: inline-block; width: auto; margin-right: 137px;">
-            <button id="upload" class="btn btn-info upload-btn btn-sm" disabled>
-                <i class="fas fa-upload"></i> Subir Archivo
-            </button>
-        </div>
-    </div>
-
-
-
-
-
-</div>
-
-<!-- Scripts -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.24.0/js/patternfly.min.js"></script>
+</footer>
 
 <script>
+    "use strict";
 
+    const $ = id => document.getElementById(id);
+
+    let socket = null;
     let connected = false;
-    let socket;
     let username = "";
-
-    $(document).ready(function () {
-        $("#connect").click(connect);
-        $("#send").click(send);
-        $("#name").keypress(e => { if (e.which === 13) connect(); });
-        $("#msg").keypress(e => { if (e.which === 13) send(); });
-
-        cargarModelos();
-
-        $("#reset").click(() => {
-            if (!confirm("Se reconstruirá el índice desde el corpus versionado. Tarda unos segundos. ¿Continuar?")) {
-                return;
-            }
-            const $btn = $("#reset").prop("disabled", true);
-
-            appendSystemMessage("Reconstruyendo el índice… esto tardará unos segundos.");
-
-            $.ajax({
-                url: "/service/admin/reset",
-                type: "POST",
-                headers: { "X-API-KEY": getAdminKey() },
-                dataType: "text",
-            success: data => {
-                    $btn.prop("disabled", false);
-                    appendSystemMessage("Reset completado: " + data);
-                },
-                error: (xhr, status, error) => {
-                    $btn.prop("disabled", false);
-                    appendSystemMessage(xhr.status === 409
-                        ? "Ya hay un reindexado en curso. Espera a que termine."
-                        : "Error en el reset: " + (xhr.responseText || xhr.statusText));
-                }
-            });
-        });
-
-        $("#clean-uploads").click(() => {
-            if (!confirm("Se borrarán todos los archivos subidos y se reconstruirá el índice con el corpus base. ¿Continuar?")) {
-                return;
-            }
-            const $btn = $("#clean-uploads").prop("disabled", true);
-            appendSystemMessage("Limpiando subidas y reconstruyendo el índice…");
-            $.ajax({
-                url: "/service/admin/clean-uploads",
-                type: "POST",
-                dataType: "text",
-                headers: { "X-API-KEY": getAdminKey() },
-                success: data => {
-                    $btn.prop("disabled", false);
-                    appendSystemMessage(data);
-                },
-                error: xhr => {
-                    $btn.prop("disabled", false);
-                    appendSystemMessage(xhr.responseText || ("Error al limpiar subidas: " + xhr.statusText));
-                }
-            });
-        });
-
-        $("#connect").prop("disabled", true);
-
-        $("#llm-select").on("change", function () {
-            $("#connect").prop("disabled", $(this).val() === "");
-        });
-
-        $("#file-upload").on("change", function () {
-            $("#upload").prop("disabled", !this.files.length);
-        });
-
-        $("#upload").click(function () {
-            const file = $("#file-upload")[0].files[0];
-
-            if (!file) {
-                appendSystemMessage("Selecciona un archivo para subir.");
-                return;
-            }
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("fileName", file.name);
-
-
-            $.ajax({
-                url: "/service/admin/upload",
-                type: "POST",
-                data: formData,
-                headers: { "X-API-KEY": getAdminKey() },
-                contentType: false,
-                processData: false,
-                success: data => {
-                    appendSystemMessage("Archivo subido correctamente: " + data);
-                    $("#file-upload").val("");
-                    $("#upload").prop("disabled", true);
-                },
-                error: (xhr, status, error) => {
-                    appendSystemMessage("Error al subir archivo: " + error);
-                }
-            });
-        });
-
-    });
-
-    // Rellena el desplegable con los modelos REALES que expone el backend
-    // (GET /service/models). Si la llamada falla, opciones estáticas de
-    // emergencia para no dejar la interfaz inutilizable.
-    function cargarModelos() {
-        const sel = $("#llm-select");
-        $.getJSON("/service/models")
-            .done(modelos => {
-                Object.entries(modelos).forEach(([slot, modelo]) => {
-                    sel.append(`<option value="${slot}">${slot} → ${escapeHtml(modelo)}</option>`);
-                });
-            })
-            .fail(() => {
-                sel.append('<option value="gpto">gpto (Ollama local)</option>');
-                sel.append('<option value="llama">llama (Ollama local)</option>');
-                sel.append('<option value="gpt">gpt (OpenAI)</option>');
-                sel.append('<option value="deepseek">deepseek (Ollama local)</option>');
-                sel.append('<option value="mistral">mistral (Ollama local)</option>');
-            });
-    }
-    // La clave de administrador solo se pide la PRIMERA vez que se pulsa
-    // un botón de administración (lazy), no en cada carga de página.
     let adminKey = null;
-    function getAdminKey() {
-        if (adminKey === null) {
-            adminKey = prompt("Introduce la clave de administrador para esta sesión:") || "";
+
+    /* ================================================================= utilidades */
+
+    /** Todo lo que venga del modelo o del corpus pasa por aquí antes de tocar el DOM. */
+    function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, c => ({
+            "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        })[c]);
+    }
+
+    /** 1943 -> "1,9 s"  ·  340 -> "340 ms". Coma decimal, que es lo que toca en español. */
+    function formatMillis(ms) {
+        if (!ms) return "";
+        return ms < 1000 ? ms + " ms" : (ms / 1000).toFixed(1).replace(".", ",") + " s";
+    }
+
+    /* ================================================================= markdown
+
+       Renderizador propio en lugar de marked + DOMPurify. Dos razones:
+
+       1) Sin CDN y sin ficheros de terceros en el repositorio, así que la interfaz
+          funciona detrás de un cortafuegos — que es la premisa de deploySinConexion.sh.
+       2) La seguridad no depende de un saneador que haya que aplicar en el orden
+          correcto: aquí se ESCAPA PRIMERO todo el texto y solo después se insertan las
+          etiquetas que genera esta función. Un modelo que devuelva <script> produce
+          &lt;script&gt; y no hay forma de que llegue HTML del modelo al DOM.
+
+       A cambio cubre un subconjunto de Markdown, que es justo lo que un asistente de
+       preguntas y respuestas produce: encabezados, listas, negrita, cursiva, código,
+       citas y enlaces.
+    ============================================================================== */
+
+    function renderMarkdown(source) {
+        const fences = [];
+        const ticks = [];
+        let text = escapeHtml(source);
+
+        // Los bloques de código se apartan ANTES que nada: dentro de ellos los asteriscos y las
+        // almohadillas son literales, no marcas. El marcador es <F0>, y usa un "<" a propósito:
+        // el texto ya está escapado, así que un "<" literal es IMPOSIBLE en él y ningún modelo
+        // puede fabricar un marcador falso que se cuele por el reemplazo final.
+        text = text.replace(/```[^\n]*\n([\s\S]*?)```/g, (_, code) => "<F" + (fences.push(code) - 1) + ">");
+        text = text.replace(/`([^`\n]+)`/g, (_, code) => "<T" + (ticks.push(code) - 1) + ">");
+
+        const out = [];
+        let list = null;                                    // "ul" | "ol" | null
+        const closeList = () => { if (list) { out.push("</" + list + ">"); list = null; } };
+
+        for (const raw of text.split("\n")) {
+            const line = raw.trimEnd();
+
+            if (!line.trim()) { closeList(); continue; }
+
+            // Un bloque de código ocupa su línea entera: fuera del <p>, o el HTML sale inválido.
+            if (/^<F\d+>$/.test(line.trim())) { closeList(); out.push(line.trim()); continue; }
+
+            const heading = line.match(/^(#{1,4})\s+(.*)$/);
+            if (heading) {
+                closeList();
+                const level = Math.min(heading[1].length + 2, 6);   // # -> h3, para no competir con el h1
+                out.push("<h" + level + ">" + inlineMarks(heading[2]) + "</h" + level + ">");
+                continue;
+            }
+
+            const quote = line.match(/^&gt;\s?(.*)$/);
+            if (quote) { closeList(); out.push("<blockquote>" + inlineMarks(quote[1]) + "</blockquote>"); continue; }
+
+            const bullet = line.match(/^\s*[-*+]\s+(.*)$/);
+            if (bullet) {
+                if (list !== "ul") { closeList(); out.push("<ul>"); list = "ul"; }
+                out.push("<li>" + inlineMarks(bullet[1]) + "</li>");
+                continue;
+            }
+
+            const numbered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+            if (numbered) {
+                if (list !== "ol") { closeList(); out.push("<ol>"); list = "ol"; }
+                out.push("<li>" + inlineMarks(numbered[1]) + "</li>");
+                continue;
+            }
+
+            closeList();
+            out.push("<p>" + inlineMarks(line) + "</p>");
         }
-        return adminKey;
+        closeList();
+
+        return out.join("")
+            .replace(/<T(\d+)>/g, (_, i) => "<code>" + ticks[i] + "</code>")
+            .replace(/<F(\d+)>/g, (_, i) => "<pre><code>" + fences[i] + "</code></pre>");
+    }
+
+    /** Marcas dentro de una línea. El texto YA viene escapado. */
+    function inlineMarks(text) {
+        return text
+            // El esquema del enlace está fijado en el propio patrón: javascript: no encaja.
+            .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+                '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+            .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+            .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+    }
+
+    /**
+     * Separa el razonamiento de la respuesta.
+     *
+     * gpt-oss:20b es un modelo de razonamiento y según cómo lo sirva Ollama puede
+     * devolver su cadena de pensamiento pegada delante de la respuesta. Enseñarla tal
+     * cual confunde; esconderla del todo sería tirar información interesante para un
+     * trabajo sobre modelos. Se separa y se ofrece plegada.
+     */
+    function splitThinking(raw) {
+        const tagged = String(raw ?? "").match(/^\s*<think(?:ing)?>([\s\S]*?)<\/think(?:ing)?>\s*([\s\S]*)$/i);
+        if (tagged) return { thinking: tagged[1].trim(), answer: tagged[2].trim() };
+
+        // Canales del formato harmony, por si llegan sin etiquetas.
+        const harmony = String(raw ?? "").match(/^\s*analysis\s*([\s\S]*?)assistantfinal\s*([\s\S]*)$/i);
+        if (harmony) return { thinking: harmony[1].trim(), answer: harmony[2].trim() };
+
+        return { thinking: null, answer: String(raw ?? "") };
+    }
+
+    /* ================================================================= fuentes */
+
+    /** "warehouse_inventory.csv (fila 12)" -> { name, locator, kind } */
+    function parseSource(source) {
+        const value = String(source ?? "");
+        const locator = (value.match(/\(([^)]*)\)\s*$/) || ["", ""])[1];
+        const name = value.replace(/\s*\([^)]*\)\s*$/, "").trim();
+        const ext = (name.split(".").pop() || "").toLowerCase();
+        return { name, locator, kind: ["pdf", "csv", "txt"].includes(ext) ? ext : "doc" };
+    }
+
+    const ORIGIN_LABEL = {
+        "D":   ["d",  "Solo la búsqueda densa: se encontró por SIGNIFICADO"],
+        "L":   ["l",  "Solo la búsqueda léxica: se encontró por LITERALIDAD (BM25)"],
+        "D+L": ["dl", "Las dos ramas, por caminos independientes: significado Y literalidad"]
+    };
+
+    /**
+     * Varias páginas del mismo documento se juntan en "page 2, 3": la pregunta que responde esta
+     * fila es DE QUÉ DOCUMENTO sale la respuesta, y repetir el nombre tres veces la contesta peor.
+     */
+    function joinLocators(locators) {
+        if (!locators.length) return "";
+        const label = locators[0].replace(/\s*\d+\s*$/, "").trim();
+        const sameLabel = label && locators.every(l => l.replace(/\s*\d+\s*$/, "").trim() === label);
+        return sameLabel
+            ? label + " " + locators.map(l => (l.match(/\d+/) || [l])[0]).join(", ")
+            : locators.join(" · ");
+    }
+
+    function buildSources(sources) {
+        const byDocument = new Map();
+        for (const item of sources) {
+            const parsed = parseSource(item.source);
+            if (!byDocument.has(parsed.name)) {
+                byDocument.set(parsed.name, { kind: parsed.kind, locators: [] });
+            }
+            const entry = byDocument.get(parsed.name);
+            if (parsed.locator && !entry.locators.includes(parsed.locator)) {
+                entry.locators.push(parsed.locator);
+            }
+        }
+
+        const wrap = document.createElement("div");
+        wrap.className = "sources";
+
+        for (const [name, entry] of byDocument) {
+            const chip = document.createElement("span");
+            chip.className = "chip";
+
+            const kind = document.createElement("span");
+            kind.className = "kind " + entry.kind;
+            kind.textContent = entry.kind.toUpperCase();
+
+            const label = document.createElement("span");
+            label.textContent = name;
+
+            chip.append(kind, label);
+
+            const locators = joinLocators(entry.locators);
+            if (locators) {
+                const loc = document.createElement("span");
+                loc.className = "loc";
+                loc.textContent = locators;
+                chip.append(loc);
+            }
+            wrap.append(chip);
+        }
+        return wrap;
+    }
+
+    /** El fragmento recortado a una línea de tabla. El completo se despliega al pulsar la fila. */
+    function fragmentPreview(text) {
+        const flat = String(text ?? "").replace(/\s+/g, " ").trim();
+        return flat.length <= 150 ? flat : flat.slice(0, 150) + "…";
+    }
+
+    /** La celda "Fuente": el fichero en una línea y el localizador debajo, para que un nombre
+     *  largo no se parta por la mitad ("manual_misiones_espacia / les.pdf"). */
+    function sourceCell(source) {
+        const parsed = parseSource(source);
+        const wrap = document.createElement("span");
+        wrap.append(document.createTextNode(parsed.name));
+        if (parsed.locator) {
+            const loc = document.createElement("span");
+            loc.className = "loc";
+            loc.textContent = parsed.locator;
+            wrap.append(loc);
+        }
+        return wrap;
+    }
+
+    /** Una celda: con texto, o con un elemento ya construido. */
+    function cell(className, content) {
+        const td = document.createElement("td");
+        td.className = className;
+        if (content instanceof Node) td.append(content); else td.textContent = content;
+        return td;
+    }
+
+    /**
+     * La traza: qué fragmentos vio el modelo, por qué rama llegó cada uno y con qué puntuación.
+     * Plegada por defecto — quien quiera la respuesta la tiene arriba; quien quiera saber POR QUÉ
+     * esa respuesta, la abre.
+     */
+    function buildTrace(sources) {
+        const both = sources.filter(s => s.origin === "D+L").length;
+        const onlyLexical = sources.filter(s => s.origin === "L").length;
+
+        const details = document.createElement("details");
+        details.className = "trace";
+
+        const summary = document.createElement("summary");
+        const parts = [sources.length + (sources.length === 1 ? " fragmento" : " fragmentos")];
+        if (both) parts.push(both + " en ambas ramas");
+        if (onlyLexical) parts.push(onlyLexical + " solo léxico");
+        summary.textContent = "Traza de recuperación · " + parts.join(" · ");
+        details.append(summary);
+
+        const body = document.createElement("div");
+        body.className = "trace-body";
+
+        const table = document.createElement("table");
+        table.className = "frags";
+
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        for (const label of ["Origen", "Fuente", "RRF", "Fragmento"]) {
+            const th = document.createElement("th");
+            th.textContent = label;
+            headRow.append(th);
+        }
+        thead.append(headRow);
+
+        const tbody = document.createElement("tbody");
+
+        for (const item of sources) {
+            const [cssClass, originTitle] = ORIGIN_LABEL[item.origin] || ["d", "Origen desconocido"];
+            const badge = document.createElement("span");
+            badge.className = "origin " + cssClass;
+            badge.textContent = item.origin;
+            badge.title = originTitle;
+
+            const row = document.createElement("tr");
+            row.className = "row";
+            row.title = "Pulsa para ver el fragmento completo";
+            row.append(
+                cell("c-origin", badge),
+                cell("c-src", sourceCell(item.source)),
+                cell("c-score", Number(item.score).toFixed(4)),
+                cell("c-frag", fragmentPreview(item.text))
+            );
+
+            // El fragmento COMPLETO, en una fila propia que se despliega. En la tabla va recortado
+            // para que las cuatro columnas quepan, pero lo que hay que poder enseñar —y lo que
+            // convierte esto en una prueba y no en una etiqueta— es el texto que el modelo leyó
+            // de verdad, sin cortar.
+            const full = document.createElement("tr");
+            full.className = "full";
+            full.hidden = true;
+            const fullCell = document.createElement("td");
+            fullCell.colSpan = 4;
+            const fullText = document.createElement("div");
+            fullText.className = "full-text";
+            fullText.textContent = item.text;
+            fullCell.append(fullText);
+            full.append(fullCell);
+
+            row.addEventListener("click", () => {
+                full.hidden = !full.hidden;
+                row.classList.toggle("open", !full.hidden);
+            });
+
+            tbody.append(row, full);
+        }
+
+        table.append(thead, tbody);
+
+        const wrap = document.createElement("div");
+        wrap.className = "frags-wrap";
+        wrap.append(table);
+        body.append(wrap);
+
+        const legend = document.createElement("div");
+        legend.className = "legend";
+        legend.textContent = "D = búsqueda densa (bge-m3, significado) · L = búsqueda léxica "
+            + "(BM25, literalidad) · D+L = ambas · RRF = puntuación de la fusión, 1/(60 + puesto) por rama";
+        body.append(legend);
+
+        details.append(body);
+        return details;
+    }
+
+    /* ================================================================= mensajes */
+
+    function turn(kind) {
+        const el = document.createElement("div");
+        el.className = "turn " + kind;
+        return el;
+    }
+
+    function appendUserTurn(text) {
+        const t = turn("user");
+        const bubble = document.createElement("div");
+        bubble.className = "bubble";
+        bubble.textContent = text;                          // sin markdown: es lo que escribió él
+        t.append(bubble);
+        $("chat").append(t);
+        scrollToBottom();
+    }
+
+    function appendAssistantTurn(message) {
+        const t = turn("assistant");
+
+        const who = document.createElement("div");
+        who.className = "who";
+        who.textContent = message.model || message.from || "asistente";
+        t.append(who);
+
+        const split = splitThinking(message.message);
+
+        if (split.thinking) {
+            const think = document.createElement("details");
+            think.className = "trace";
+            const summary = document.createElement("summary");
+            summary.textContent = "Razonamiento del modelo";
+            const body = document.createElement("div");
+            body.className = "trace-body";
+            const inner = document.createElement("div");
+            inner.className = "frag-text";
+            inner.style.maxHeight = "260px";
+            inner.textContent = split.thinking;
+            body.append(inner);
+            think.append(summary, body);
+            t.append(think);
+        }
+
+        const bubble = document.createElement("div");
+        bubble.className = "bubble";
+        bubble.innerHTML = renderMarkdown(split.answer);    // seguro: escapado antes de marcar
+        t.append(bubble);
+
+        const sources = Array.isArray(message.sources) ? message.sources : [];
+        if (sources.length) {
+            t.append(buildSources(sources));
+            t.append(buildTrace(sources));
+        } else {
+            const none = document.createElement("div");
+            none.className = "no-context";
+            none.textContent = "Respondido sin contexto recuperado";
+            none.title = "La búsqueda no devolvió ningún fragmento por encima del umbral: "
+                + "lo que leas sale del modelo, no del corpus.";
+            t.append(none);
+        }
+
+        if (message.millis) {
+            const meta = document.createElement("div");
+            meta.className = "meta";
+            meta.textContent = formatMillis(message.millis) + " de generación";
+            t.append(meta);
+        }
+
+        $("chat").append(t);
+        scrollToBottom();
+    }
+
+    function appendSystem(text, isError) {
+        const el = document.createElement("div");
+        el.className = "sysmsg" + (isError ? " err" : "");
+        el.textContent = text;
+        $("chat").append(el);
+        scrollToBottom();
+    }
+
+    function showTyping() {
+        hideTyping();
+        const t = turn("assistant");
+        t.id = "typing";
+        const bubble = document.createElement("div");
+        bubble.className = "bubble";
+        bubble.innerHTML = '<span class="dots"><i></i><i></i><i></i></span>';
+        t.append(bubble);
+        $("chat").append(t);
+        scrollToBottom();
+    }
+
+    function hideTyping() {
+        const el = $("typing");
+        if (el) el.remove();
+    }
+
+    function scrollToBottom() {
+        const chat = $("chat");
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    /* ================================================================= conexión */
+
+    function setStatus(isConnected) {
+        connected = isConnected;
+        $("status").classList.toggle("on", isConnected);
+        $("status-text").textContent = isConnected ? "Conectado" : "Desconectado";
+        $("send").disabled = !isConnected;
+        $("model").disabled = isConnected;
+    }
+
+    function refreshGate() {
+        const ready = $("name").value.trim() !== "" && $("model").value !== "";
+        $("connect").disabled = !ready;
+        $("hint").textContent = $("model").value === ""
+            ? "Elige un modelo para poder conectar."
+            : (ready ? "" : "Escribe un nombre.");
     }
 
     function connect() {
-        if(connected) return;
+        if (connected) return;
+        username = $("name").value.trim();
+        if (!username || !$("model").value) { refreshGate(); return; }
 
-        username = $("#name").val().trim();
-
-        if (!username) {
-            appendSystemMessage("Escribe un nombre antes de conectar.");
-            return;
-        }
-
-        // wss:// si la página se sirve por HTTPS (si no, el navegador
-        // bloquearía el socket por contenido mixto).
-        const wsProto = location.protocol === "https:" ? "wss://" : "ws://";
-        socket = new WebSocket(wsProto + location.host + "/chat/" + encodeURIComponent(username));
+        // wss:// si la página se sirve por HTTPS (si no, el navegador bloquearía el
+        // socket por contenido mixto).
+        const proto = location.protocol === "https:" ? "wss://" : "ws://";
+        socket = new WebSocket(proto + location.host + "/chat/" + encodeURIComponent(username));
 
         socket.onopen = () => {
-            connected = true;
-            $("#send").prop("disabled", false);
-            $("#connect").prop("disabled", true);
-            $("#name").prop("disabled", true);
-            $("#msg").focus();
+            setStatus(true);
+            $("gate").hidden = true;
+            $("chat").hidden = false;
+            $("composer").hidden = false;
+            $("msg").focus();
         };
 
-        socket.onmessage = m => {
-            const chatMessage = JSON.parse(m.data);
-            switch (chatMessage.type) {
-                case "USER_JOINED":
-                    appendSystemMessage(`Conectado como ${chatMessage.from}`);
-                    break;
-                case "CHAT_MESSAGE":
-                    const esRespuestaIA = chatMessage.fromAssistant === true;
-                    if (esRespuestaIA) {
-                        quitarGenerando()
-                    }
-                    appendUserMessage(chatMessage.from, chatMessage.message, esRespuestaIA);
-                    if (esRespuestaIA) {
-                        $("#send").prop("disabled", false);
-                    }else {
-                        mostrarGenerando();
-                    }
-                    break;
+        socket.onmessage = event => {
+            const message = JSON.parse(event.data);
+            if (message.type === "USER_JOINED") {
+                appendSystem("Conectado como " + message.from);
+                return;
+            }
+            if (message.type !== "CHAT_MESSAGE") return;
+
+            if (message.fromAssistant) {
+                hideTyping();
+                appendAssistantTurn(message);
+                $("send").disabled = false;
+                $("msg").focus();
+            } else {
+                appendUserTurn(message.message);
+                showTyping();
             }
         };
 
+        socket.onerror = () => { hideTyping(); appendSystem("Error de conexión con el servidor.", true); };
 
-        socket.onerror = () => {
-            quitarGenerando();
-            appendSystemMessage("Error de conexión con el servidor.");
-        };
         // Se dispara también si el servidor se reinicia: sin esto, la interfaz se
         // queda "conectada" y los mensajes se pierden en silencio.
         socket.onclose = () => {
-            connected = false;
-            $("#send").prop("disabled", true);
-            $("#connect").prop("disabled", false);
-            $("#name").prop("disabled", false);
-            quitarGenerando();
-            appendSystemMessage("Conexión cerrada. Pulsa Conectar para volver a entrar.");
+            setStatus(false);
+            hideTyping();
+            appendSystem("Conexión cerrada. Vuelve a conectar para seguir.", true);
+            $("gate").hidden = false;
+            $("gate").classList.add("compact");
+            $("composer").hidden = true;
+            refreshGate();
         };
-
     }
 
     function send() {
         if (!connected || !socket || socket.readyState !== WebSocket.OPEN) {
-            appendSystemMessage("No estás conectado.");
+            appendSystem("No estás conectado.", true);
             return;
         }
-        const msg = $("#msg").val().trim();
-        if (!msg) return;                       // no mandes vacíos: el servidor los descarta
+        const text = $("msg").value.trim();
+        if (!text) return;                                  // el servidor descarta los vacíos
 
-        socket.send(JSON.stringify({ type: "CHAT_MESSAGE", from: username, message: msg,
-            llm: $("#llm-select").val() }));
+        socket.send(JSON.stringify({
+            type: "CHAT_MESSAGE", from: username, message: text, llm: $("model").value
+        }));
 
-        $("#msg").val("");
-        // al enviar
-        $("#send").prop("disabled", true);
-
-
-
-
+        $("msg").value = "";
+        $("msg").style.height = "auto";
+        $("send").disabled = true;
     }
 
+    /* ================================================================= modelos */
 
+    async function loadModels() {
+        const select = $("model");
+        try {
+            const response = await fetch("/service/models");
+            if (!response.ok) throw new Error(response.status);
+            const models = await response.json();
 
-    function escapeHtml(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+            select.innerHTML = "";
+            for (const [slot, model] of Object.entries(models)) {
+                const option = document.createElement("option");
+                option.value = slot;
+                option.textContent = slot + " → " + model;
+                select.append(option);
+            }
+            select.selectedIndex = 0;                       // el primero del enum ModelSlot
+        } catch (e) {
+            // Sin backend no hay slots reales; se ofrece lo mínimo para no dejar la
+            // interfaz inservible, y se avisa de que las etiquetas pueden no coincidir.
+            select.innerHTML = "";
+            for (const slot of ["gpto", "llama", "deepseek", "mistral"]) {
+                const option = document.createElement("option");
+                option.value = slot;
+                option.textContent = slot;
+                select.append(option);
+            }
+            $("hint").textContent = "No se ha podido leer la lista de modelos del servidor.";
+        }
+        refreshGate();
     }
 
-    function appendSystemMessage(message) {
-        $("#chat").append(`<div class="system-message">${escapeHtml(message)}</div><br>`);
-        scrollToBottom();
+    /* ================================================================= administración */
+
+    function adminHeaders() {
+        // La clave se pide la PRIMERA vez que se usa un botón de administración (lazy),
+        // no en cada carga de página.
+        if (adminKey === null) {
+            adminKey = prompt("Introduce la clave de administrador para esta sesión:") || "";
+        }
+        return { "X-API-KEY": adminKey };
     }
 
-    function appendUserMessage(from, message, isAi) {
-        const userClass = isAi ? "system-user" : "user";
-        $("#chat").append(`<div><span class="${userClass}">${escapeHtml(from)}</span>: ${escapeHtml(message)}</div><br>`);
-        scrollToBottom();
+    async function adminPost(path, button, runningText) {
+        button.disabled = true;
+        $("admin-menu").open = false;
+        if (runningText) appendSystem(runningText);
+        try {
+            const response = await fetch(path, { method: "POST", headers: adminHeaders() });
+            const body = await response.text();
+            if (response.ok) {
+                appendSystem(body);
+            } else if (response.status === 401 || response.status === 403) {
+                adminKey = null;                            // se vuelve a pedir la próxima vez
+                appendSystem("Clave de administrador incorrecta.", true);
+            } else if (response.status === 409) {
+                appendSystem("Ya hay un reindexado en curso. Espera a que termine.", true);
+            } else {
+                appendSystem(body || ("Error " + response.status), true);
+            }
+        } catch (e) {
+            appendSystem("No se ha podido contactar con el servidor.", true);
+        } finally {
+            button.disabled = false;
+        }
     }
 
+    async function uploadFile() {
+        const file = $("file").files[0];
+        if (!file) return;
 
-    function scrollToBottom() {
-        const chat = $('#chat');
-        chat.scrollTop(chat[0].scrollHeight);
+        const form = new FormData();
+        form.append("file", file);
+        form.append("fileName", file.name);
+
+        $("upload").disabled = true;
+        $("admin-menu").open = false;
+        appendSystem("Subiendo e indexando " + file.name + "…");
+
+        try {
+            const response = await fetch("/service/admin/upload",
+                { method: "POST", headers: adminHeaders(), body: form });
+            const body = await response.text();
+
+            if (response.ok) {
+                appendSystem(body);
+                $("file").value = "";
+            } else if (response.status === 413) {
+                // El límite lo fija quarkus.http.limits.max-body-size. Sin este caso, el
+                // navegador enseña un error genérico y parece un fallo del servidor.
+                appendSystem("El archivo supera el límite de subida del servidor (20 MB).", true);
+            } else if (response.status === 401 || response.status === 403) {
+                adminKey = null;
+                appendSystem("Clave de administrador incorrecta.", true);
+            } else {
+                appendSystem(body || ("Error " + response.status), true);
+            }
+        } catch (e) {
+            appendSystem("No se ha podido subir el archivo.", true);
+        } finally {
+            $("upload").disabled = !$("file").files.length;
+        }
     }
 
-    // Indicador temporal: se le pone id para poder retirarlo cuando llegue la respuesta.
-    function mostrarGenerando() {
-        quitarGenerando();                 // nunca dos a la vez
-        $("#chat").append('<div id="generando" class="system-message">Generando respuesta…</div>');
-        scrollToBottom();
-    }
+    /* ================================================================= arranque */
 
-    function quitarGenerando() {
-        $("#generando").remove();          // si no existe, no hace nada
-    }
+    document.addEventListener("DOMContentLoaded", () => {
+        loadModels();
 
+        $("connect").addEventListener("click", connect);
+        $("send").addEventListener("click", send);
+        $("name").addEventListener("input", refreshGate);
+        $("model").addEventListener("change", refreshGate);
+        $("name").addEventListener("keydown", e => { if (e.key === "Enter") connect(); });
+
+        // Enter envía, Mayús+Enter salta de línea, y el cuadro crece con el texto.
+        $("msg").addEventListener("keydown", e => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+        });
+        $("msg").addEventListener("input", function () {
+            this.style.height = "auto";
+            this.style.height = Math.min(this.scrollHeight, 160) + "px";
+        });
+
+        $("file").addEventListener("change", () => { $("upload").disabled = !$("file").files.length; });
+        $("upload").addEventListener("click", uploadFile);
+
+        $("reset").addEventListener("click", () => {
+            if (!confirm("Se reconstruirá el índice desde el corpus versionado. Tarda unos segundos. ¿Continuar?")) return;
+            adminPost("/service/admin/reset", $("reset"), "Reconstruyendo el índice…");
+        });
+
+        $("clean").addEventListener("click", () => {
+            if (!confirm("Se borrarán todos los archivos subidos y se reconstruirá el índice con el corpus base. ¿Continuar?")) return;
+            adminPost("/service/admin/clean-uploads", $("clean"), "Limpiando subidas y reconstruyendo el índice…");
+        });
+
+        // Cerrar el menú de administración al pulsar fuera.
+        document.addEventListener("click", e => {
+            const menu = $("admin-menu");
+            if (menu.open && !menu.contains(e.target)) menu.open = false;
+        });
+    });
 </script>
-
 </body>
 </html>

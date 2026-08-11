@@ -52,10 +52,18 @@ public class ChatService {
 
     private static final Pattern IDENTIFIER = Pattern.compile("\\p{L}{2,}[-_]?\\d{2,}");
 
+    public record Answer(String text, String model, long millis,
+                         List<RagRetriever.Retrieved> sources) {
 
-    public String chat(String username, String message, String modelProvider){
+        /** Respuesta que no ha pasado por el modelo: mensaje vacío, bloqueo o error. */
+        static Answer plain(String text) {
+            return new Answer(text, null, 0L, List.of());
+        }
+    }
+
+    public Answer chat(String username, String message, String modelProvider){
         if (message == null || message.isBlank()) {
-            return "No he recibido ningún mensaje. Escribe algo y te respondo.";
+            return Answer.plain("No he recibido ningún mensaje. Escribe algo y te respondo.");
         }
 
         ModelSlot slot =  ModelSlot.from(modelProvider);
@@ -67,7 +75,7 @@ public class ChatService {
         //    búsqueda vectorial en un mensaje que vamos a rechazar.
         if (isInjection(username, question)) {
             log.info("[{}] mensaje bloqueado por el detector de prompt injection", username);
-            return "Mensaje bloqueado: se ha detectado un posible intento de prompt injection.";
+            return Answer.plain("Mensaje bloqueado: se ha detectado un posible intento de prompt injection.");
         }
 
 
@@ -77,7 +85,7 @@ public class ChatService {
             String query = buildSearchQuery(username, question);
 
             // 2) Recuperación explícita del context (RAG).
-            String context = ragRetriever.retrieveContext(query);
+            RagRetriever.RetrievedContext context = ragRetriever.retrieveContext(query);
             // 3) Generación: el context viaja en el system message.
             long t0 = System.nanoTime();
             // El modelo recibe la question ORIGINAL, pero la búsqueda pudo hacerse con
@@ -88,15 +96,15 @@ public class ChatService {
                     : "La búsqueda del context se ha realizado interpretando la question como: \""
                     + query + "\". Si el context encaja con esa interpretación, úsalo.";
 
-            String answer = assistant.chat(slot.slot(), username,interpretation, context, question);
+            String answer = assistant.chat(slot.slot(), username,interpretation, context.text(), question);
             long ms = (System.nanoTime() - t0) / 1_000_000;
             log.info("[{}] slot='{}' modelo='{}' respondió en {} ms",
                     username, slot, modelTag, ms);
-            return answer;
+            return new Answer(answer,modelTag,ms,context.chunks());
 
         } catch (Exception e) {
             log.error("[{}] slot='{}' modelo='{}': error procesando mensaje", username, slot, modelTag, e);
-            return "Ha ocurrido un error procesando tu mensaje. Inténtalo de nuevo.";
+            return Answer.plain("Ha ocurrido un error procesando tu mensaje. Inténtalo de nuevo.");
         }
     }
     private boolean isInjection(String username, String question) {

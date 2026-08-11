@@ -82,6 +82,8 @@ public class LexicalSearch {
     }
     /** Una palabra de 4 letras o más. */
     private static final Pattern CONTENT_WORD = Pattern.compile("\\p{L}{4,}");
+    /** Un término que contiene dígitos: un identificador, un código, una cifra. */
+    private static final Pattern HAS_DIGIT = Pattern.compile("\\p{N}");
 
     /**
      * The lexical branch abstains when the query cannot be a useful literal search.
@@ -101,37 +103,112 @@ public class LexicalSearch {
         }
         return query.split("\\s+").length >= 2 || CONTENT_WORD.matcher(query).find();
     }
+
     /**
-     * Fragmentos ordenados por relevancia BM25, junto con la query enviada.
-     * Solo importa el ORDEN: la fusión posterior usa posiciones, no puntuaciones.
+     * Búsqueda conjuntiva con relajación progresiva.
      *
-     * Ante cualquier fallo devuelve una lista vacía: igual que la reescritura de
-     * query, esta etapa es una mejora y nunca un punto de fallo del sistema.
+     * El AND da precisión, pero es frágil: un solo término ausente del índice anula la consulta
+     * entera. Medido: "¿Cuál es el precio del SKU-2041?" produce "precio SKU 2041" y devuelve CERO,
+     * porque el almacén está en inglés y ningún fragmento contiene "precio" y "SKU" a la vez —
+     * arrastrando consigo a "SKU" y "2041", que sí habrían encontrado la fila.
+     *
+     * Cuando la conjunción completa devuelve cero, se reintenta quitando un término y se repite.
+     * Solo se relaja ante el VACÍO: si el AND completo encontró algo, ese resultado es siempre mejor
+     * y no se toca, de modo que el camino feliz no paga ni una consulta extra.
      */
     public LexicalResult search(String question, int limit) {
         String query = toRediSearchQuery(question);
         if (!isWorthSearching(query)) {
             return LexicalResult.empty(query);
         }
-        try {
-            QueryArgs args = new QueryArgs().limit(0, limit);
-            RETURNED_FIELDS.forEach(args::returnAttribute);
 
-            SearchQueryResponse response = redis.search().ftSearch(index, query, args);
-
-            List<Chunk> chunks = response.documents().stream()
-                    .map(LexicalSearch::toChunk)
-                    .filter(Objects::nonNull)
-                    .toList();
+        List<Chunk> chunks = run(query, limit);
+        if (!chunks.isEmpty()) {
             return new LexicalResult(query, chunks);
+        }
 
+        // La conjunción completa ha devuelto cero: solo AHORA se relaja.
+        List<String> terms = new ArrayList<>(List.of(query.split("\\s+")));
+        while (terms.size() > 2) {
+            int drop = termToDrop(terms);
+            if (drop < 0) {
+                return LexicalResult.empty(query);      // hay un identificador que no existe
+            }
+            terms.remove(drop);
+            String relaxed = String.join(" ", terms);
+            chunks = run(relaxed, limit);
+            if (!chunks.isEmpty()) {
+                log.debug("Consulta léxica relajada: \"{}\" -> \"{}\"", query, relaxed);
+                return new LexicalResult(relaxed, chunks);
+            }
+        }
+        // Con menos de dos términos no se busca: una palabra suelta procedente de una relajación
+        // devuelve cualquier cosa ("capital Mongolia" acabaría buscando "capital").
+        return LexicalResult.empty(query);
+    }
+
+    /**
+     * Índice del término que debe caer, o -1 si NO hay que relajar.
+     *
+     * 1. Si falta del índice un término CON DÍGITOS, no se relaja: "SKU-9999" no está en el corpus,
+     *    así que la pregunta no tiene respuesta y quitarlo la convertiría en otra pregunta. Sin esta
+     *    regla, "price SKU 9999" acabaría devolviendo las 25 filas del almacén.
+     * 2. Si falta un término SIN dígitos ("holds", "sepas", "quedan"), ese es el culpable: es una
+     *    palabra de la pregunta, no del corpus, y está anulando la conjunción sin aportar nada.
+     * 3. Si no falta ninguno, cae el más frecuente, que es el menos discriminante. Es el caso de
+     *    "precio SKU 2041": los tres existen, pero "precio" está en 211 fragmentos y "2041" en uno.
+     */
+    private int termToDrop(List<String> terms) {
+        int absentWord = -1;
+        int mostFrequent = -1;
+        long mostFrequentCount = -1;
+
+        for (int i = 0; i < terms.size(); i++) {
+            String term = terms.get(i);
+            long frequency = documentFrequency(term);
+            if (frequency == 0) {
+                if (HAS_DIGIT.matcher(term).find()) {
+                    return -1;                          // regla 1: no se relaja
+                }
+                if (absentWord < 0) {
+                    absentWord = i;                     // regla 2
+                }
+            } else if (frequency > mostFrequentCount) {
+                mostFrequentCount = frequency;          // regla 3
+                mostFrequent = i;
+            }
+        }
+        return absentWord >= 0 ? absentWord : mostFrequent;
+    }
+
+    /**
+     * Cuántos fragmentos contienen el término. LIMIT 0 0 pide solo el recuento, sin traer documentos.
+     * Ante un fallo devuelve el máximo: un problema de Redis no debe hacer que el sistema se abstenga,
+     * así que ese término se trata como el más frecuente y es el primero en caer.
+     */
+    private long documentFrequency(String term) {
+        try {
+            return redis.search().ftSearch(index, term, new QueryArgs().limit(0, 0)).count();
         } catch (Exception e) {
-            log.warn("Búsqueda léxica fallida ('{}'), se continúa solo con la densa: {}",
-                    query, e.toString());
-            return LexicalResult.empty(query);
+            return Long.MAX_VALUE;
         }
     }
 
+    /** La búsqueda de verdad, extraída para poder reintentarla con la consulta relajada. */
+    private List<Chunk> run(String query, int limit) {
+        try {
+            QueryArgs args = new QueryArgs().limit(0, limit);
+            RETURNED_FIELDS.forEach(args::returnAttribute);
+            return redis.search().ftSearch(index, query, args).documents().stream()
+                    .map(LexicalSearch::toChunk)
+                    .filter(Objects::nonNull)
+                    .toList();
+        } catch (Exception e) {
+            log.warn("Búsqueda léxica fallida ('{}'), se continúa solo con la densa: {}",
+                    query, e.toString());
+            return List.of();
+        }
+    }
     /**
      * Pregunta en lenguaje natural -> query de RediSearch.
      *
