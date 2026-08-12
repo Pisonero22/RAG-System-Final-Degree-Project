@@ -31,7 +31,7 @@ public class CsvDocumentLoader implements DocumentLoader {
     @Override
     public List<Document> load(Path folder) throws IOException {
         if (!Files.isDirectory(folder)) {
-            log.warn("El directorio '{}' no existe; no hay CSVs que cargar.", folder);
+            log.warn("Directory '{}' does not exist; no CSV files to load", folder);
             return List.of();
         }
         List<Document> documents = new ArrayList<>();
@@ -42,8 +42,7 @@ public class CsvDocumentLoader implements DocumentLoader {
                         try {
                             documents.addAll(loadCsvFile(p));
                         } catch (Exception e) {
-                            log.warn("CSV '{}' ilegible; se OMITE de la ingesta: {}",
-                                    p.getFileName(), e.toString());
+                            log.warn("CSV '{}' unreadable; SKIPPED from the ingest: {}", p.getFileName(), e.toString());
                         }
                     });
         }
@@ -90,13 +89,13 @@ public class CsvDocumentLoader implements DocumentLoader {
                 Metadata metadata = Metadata.from(fields);
                 documents.add(Document.from(text.toString(), metadata));
                 }catch (Exception e) {
-                    log.warn("CSV '{}', fila {}: registro ilegible, se omite ({})", cleanName, rowNum, e.toString());
+                    log.warn("CSV '{}', row {}: unreadable record, skipped ({})", cleanName, rowNum, e.toString());
                 }
                 rowNum++;
             }
         }
         if (documents.isEmpty()) {
-            log.warn("CSV '{}' sin filas de datos; se omite.", cleanName);
+            log.warn("CSV '{}' has no data rows; skipped", cleanName);
             return List.of();
         }
         return documents;

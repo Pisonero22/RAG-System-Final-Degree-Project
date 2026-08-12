@@ -33,7 +33,7 @@ public class PdfDocumentLoader implements DocumentLoader {
     @Override
     public List<Document> load(Path folder) throws IOException {
         if (!Files.isDirectory(folder)) {
-            log.warn("El directorio '{}' no existe; no hay PDFs que cargar.", folder);
+            log.warn("Directory '{}' does not exist; no PDF files to load", folder);
             return List.of();
         }
         List<Document> documents = new ArrayList<>();
@@ -44,8 +44,7 @@ public class PdfDocumentLoader implements DocumentLoader {
                         try {
                             documents.addAll(loadPdf(p));
                         } catch (Exception e) {
-                            log.warn("PDF '{}' ilegible; se OMITE de la ingesta: {}",
-                                    p.getFileName(), e.toString());
+                            log.warn("PDF '{}' unreadable; SKIPPED from the ingest: {}", p.getFileName(), e.toString());
                         }
                     });
         }
@@ -74,7 +73,7 @@ public class PdfDocumentLoader implements DocumentLoader {
                 String text = stripper.getText(pdf);
 
                 if (text == null || text.isBlank()) {
-                    log.warn("Página {} de '{}' sin text; se omite.", pageNum, cleanName);
+                    log.debug("Page {} of '{}' has no text; skipped", pageNum, cleanName);
                     continue;
                 }
                 pageNumbers.add(pageNum);
@@ -95,7 +94,7 @@ public class PdfDocumentLoader implements DocumentLoader {
         }
 
         if (segments.isEmpty()) {
-            log.warn("El PDF '{}' no aportó ninguna página con text.", cleanName);
+            log.warn("PDF '{}' produced no page with text", cleanName);
         }
         return segments;
 

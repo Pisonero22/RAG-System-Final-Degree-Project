@@ -26,18 +26,18 @@ public class TxtDocumentLoader implements DocumentLoader {
         File file = filePath.toFile();
 
         if (!file.exists()) {
-            log.warn("El directorio '{}' no existe; no hay TXTs que cargar.", filePath);
+            log.warn("Directory '{}' does not exist; no TXT files to load", filePath);
             return List.of();
         }
         if (!file.canRead()) {
-            log.warn("No se puede leer el fichero o directorio: '{}'", filePath);
+            log.warn("Cannot read file or directory: '{}'", filePath);
             return List.of();
         }
         PathMatcher onlyTxt = FileSystems.getDefault().getPathMatcher("glob:**.txt");
         List<Document> documents = loadDocumentsRecursively(filePath, onlyTxt, new TextDocumentParser());
 
         if (documents == null || documents.isEmpty()) {
-            log.warn("No hay documentos de text en '{}'.", filePath);
+            log.warn("No TXT documents found in '{}'", filePath);
             return List.of();
         }
         // A blank file is dropped, not fatal: one of them must not cancel the whole batch.

@@ -91,18 +91,17 @@ public class RedisDocumentStore implements DocumentStore {
             throw new IllegalStateException("A reindex is already running");
         }
         try {
-            Corpus corpus = loadCorpus();
             long t0 = System.nanoTime();
-
+            Corpus corpus = loadCorpus();
             if (corpus.empty()) {
-                log.warn("Reset CANCELADO: no se ha podido cargar ningún documento. "
-                        + "El índice actual se mantiene intacto.");
+                log.warn("Reset CANCELLED: not a single document could be loaded. "
+                        + "The current index is left untouched");
                 return;                              //    an old index beats no index
             }
             deleteAllEmbeddings();
             index(corpus);
 
-            log.info("Reset completado: {} documentos reindexados en {} ms", corpus.total(),(System.nanoTime() - t0) / 1_000_000);
+            log.info("Reset done: {} documents re-indexed in {} ms", corpus.total(), (System.nanoTime() - t0) / 1_000_000);
         } finally {
             reindexing.set(false);
         }
@@ -124,8 +123,7 @@ public class RedisDocumentStore implements DocumentStore {
             builder.documentSplitter(recursive(512, 128));   // a CSV row is already one embedding
         }
         builder.build().ingest(documents);
-
-        log.info("Ingesta incremental de '{}': {} documentos", file.getFileName(), documents.size());
+        log.info("Incremental ingest of '{}': {} documents", file.getFileName(), documents.size());
     }
 
     private void deleteAllEmbeddings() {
@@ -156,7 +154,7 @@ public class RedisDocumentStore implements DocumentStore {
         if (!corpus.prose().isEmpty()) {
             ingestor().documentSplitter(recursive(512, 128)).build().ingest(corpus.prose());
         }
-        log.info("Ingesta: {} rows CSV + {} docs de text/PDF", corpus.rows().size(), corpus.prose().size());
+        log.info("Ingested {} CSV rows + {} TXT/PDF documents", corpus.rows().size(), corpus.prose().size());
     }
     /**
      * The ingestor shared by all three paths.

@@ -1,21 +1,21 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RAG · Sistema de recuperación híbrida</title>
+    <title>RAG · Hybrid retrieval system</title>
 
     <!--
-      Página completa del cliente: sin jQuery, sin Bootstrap, sin PatternFly y SIN NINGUNA
-      petición a un CDN. Las tres librerías anteriores sumaban ~300 KB descargados de
-      cloudflare para, en la práctica, hacer querySelector y añadir clases — y además dejaban
-      la interfaz inservible detrás de un cortafuegos, cosa que contradecía a deploySinConexion.sh.
+      The whole client, in one file: no jQuery, no Bootstrap, no PatternFly and NOT A SINGLE
+      request to a CDN. Those three libraries added up to ~300 KB pulled from cloudflare to, in
+      practice, call querySelector and add a few classes — and they left the interface useless
+      behind a firewall, which contradicted deploySinConexion.sh.
 
-      Lo que sí hace esta versión y la anterior no: enseñar de dónde sale cada respuesta.
-      Bajo cada mensaje del asistente aparecen las fuentes y, plegada, la traza de recuperación
-      con el ORIGEN de cada fragmento (densa, léxica o ambas) y su puntuación RRF. Esa
-      información ya existía en el log del servidor; aquí se le enseña a quien lee la respuesta,
-      que es quien necesita poder distinguir una cita de una alucinación.
+      What this version does and the previous one did not: show where every answer comes from.
+      Under each assistant message you get the sources and, folded away, the retrieval trace with
+      the BRANCH that found each fragment (dense, lexical or both) and its RRF score. That
+      information already existed in the server log; here it is shown to whoever is reading the
+      answer, who is the one who needs to tell a citation from a hallucination.
     -->
 
     <style>
@@ -52,7 +52,7 @@
             }
         }
 
-        /* ---------------------------------------------------------------- estructura */
+        /* ---------------------------------------------------------------- layout */
         * { box-sizing: border-box; }
         html, body { height: 100%; }
         body {
@@ -67,7 +67,7 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* ---------------------------------------------------------------- cabecera */
+        /* ---------------------------------------------------------------- header */
         .topbar {
             display: flex; align-items: center; gap: 16px;
             padding: 10px 20px;
@@ -105,7 +105,7 @@
         }
         select { font-size: 13px; max-width: 240px; }
 
-        /* menú de administración: <details> nativo, sin una línea de JS para abrirlo */
+        /* admin menu: a native <details>, so not one line of JS is needed to open it */
         .menu { position: relative; }
         .menu > summary {
             display: inline-block; list-style: none; cursor: pointer; user-select: none;
@@ -125,7 +125,7 @@
         .menu-panel hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
         .menu-panel input[type=file] { width: 100%; font-size: 12px; margin-bottom: 8px; }
 
-        /* ---------------------------------------------------------------- botones */
+        /* ---------------------------------------------------------------- buttons */
         .btn {
             font: inherit; font-size: 14px; cursor: pointer;
             padding: 7px 14px; border-radius: 8px;
@@ -139,7 +139,7 @@
         .btn-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
         .btn-block { display: block; width: 100%; margin-top: 8px; text-align: left; }
 
-        /* ---------------------------------------------------------------- puerta de entrada */
+        /* ---------------------------------------------------------------- entry gate */
         main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
         .gate {
             margin: auto; padding: 40px 24px; max-width: 460px; width: 100%; text-align: center;
@@ -149,7 +149,7 @@
         .gate-row { display: flex; gap: 10px; }
         .gate-row input { flex: 1; }
         .hint { font-size: 13px; color: var(--muted); margin-top: 14px; min-height: 20px; }
-        /* Al reconectar, la puerta se encoge a una barra: la conversación anterior sigue visible. */
+        /* On reconnect the gate shrinks to a bar, so the previous conversation stays visible. */
         .gate.compact { margin: 0 auto; padding: 12px 20px 4px; max-width: 780px; }
         .gate.compact h1, .gate.compact > p:not(.hint) { display: none; }
         .gate.compact .hint { margin-top: 8px; }
@@ -178,7 +178,7 @@
         .who { font-size: 12px; color: var(--muted); margin: 0 4px 5px; font-family: var(--mono); }
         .meta { font-size: 12px; color: var(--muted); margin: 6px 4px 0; font-family: var(--mono); }
 
-        /* markdown dentro de la burbuja */
+        /* markdown inside the bubble */
         .bubble > :first-child { margin-top: 0; }
         .bubble > :last-child { margin-bottom: 0; }
         .bubble p { margin: 0 0 .7em; }
@@ -197,14 +197,14 @@
         .bubble blockquote { margin: 0 0 .7em; padding-left: .8em;
             border-left: 3px solid var(--line); color: var(--ink-soft); }
 
-        /* mensajes del sistema */
+        /* system messages */
         .sysmsg {
             max-width: 780px; width: 100%; margin: 0 auto;
             font-size: 13px; color: var(--muted); font-style: italic; text-align: center;
         }
         .sysmsg.err { color: var(--danger); font-style: normal; }
 
-        /* ---------------------------------------------------------------- fuentes */
+        /* ---------------------------------------------------------------- sources */
         .sources { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 4px 0; }
         .chip {
             display: inline-flex; align-items: center; gap: 6px;
@@ -233,7 +233,7 @@
             display: grid; place-items: center;
         }
 
-        /* ---------------------------------------------------------------- traza */
+        /* ---------------------------------------------------------------- trace */
         .trace { margin: 9px 4px 0; font-size: 13px; }
         .trace > summary {
             cursor: pointer; user-select: none; color: var(--muted);
@@ -284,7 +284,7 @@
         .legend { padding: 9px 12px; border-top: 1px solid var(--line);
             background: var(--surface-2); color: var(--muted); font-size: 11.5px; }
 
-        /* ---------------------------------------------------------------- escribiendo */
+        /* ---------------------------------------------------------------- typing */
         .dots { display: inline-flex; gap: 4px; padding: 3px 0; }
         .dots i {
             width: 6px; height: 6px; border-radius: 50%; background: var(--muted);
@@ -295,7 +295,7 @@
         @keyframes blink { 0%, 70%, 100% { opacity: .25; } 35% { opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { .dots i { animation: none; opacity: .55; } }
 
-        /* ---------------------------------------------------------------- redactor */
+        /* ---------------------------------------------------------------- composer */
         .composer {
             display: flex; gap: 10px; align-items: flex-end;
             padding: 12px 20px 16px;
@@ -315,28 +315,28 @@
 <header class="topbar">
     <div class="brand">
         <span class="logo">RAG</span>
-        <span class="sub">Recuperación híbrida sobre corpus local</span>
+        <span class="sub">Hybrid retrieval over a local corpus</span>
     </div>
 
     <div class="topbar-right">
-        <span id="status" class="status"><i></i><span id="status-text">Desconectado</span></span>
+        <span id="status" class="status"><i></i><span id="status-text">Disconnected</span></span>
 
         <label class="field">
-            Modelo
-            <!-- Se rellena desde /service/models con los modelos REALES configurados:
-                 si cambias GPTOSS_CHAT_MODEL, el desplegable lo refleja sin tocar el HTML. -->
-            <select id="model"><option value="" disabled selected>cargando…</option></select>
+            Model
+            <!-- Filled from /service/models with the models REALLY configured: change
+                 GPTOSS_CHAT_MODEL and the dropdown follows without touching this HTML. -->
+            <select id="model"><option value="" disabled selected>loading…</option></select>
         </label>
 
         <details class="menu" id="admin-menu">
-            <summary title="Administración">&#8942;</summary>
+            <summary title="Administration">&#8942;</summary>
             <div class="menu-panel">
-                <p class="menu-title">Administración</p>
+                <p class="menu-title">Administration</p>
                 <input type="file" id="file" accept=".pdf,.txt,.csv">
-                <button id="upload" class="btn btn-block" disabled>Subir e indexar</button>
+                <button id="upload" class="btn btn-block" disabled>Upload and index</button>
                 <hr>
-                <button id="clean" class="btn btn-block">Limpiar subidas</button>
-                <button id="reset" class="btn btn-block btn-danger">Reindexar corpus</button>
+                <button id="clean" class="btn btn-block">Clean uploads</button>
+                <button id="reset" class="btn btn-block btn-danger">Rebuild the index</button>
             </div>
         </details>
     </div>
@@ -344,11 +344,11 @@
 
 <main>
     <section class="gate" id="gate">
-        <h1>Conéctate para empezar</h1>
-        <p>Elige un modelo, escribe un nombre y pregunta por el contenido del corpus.</p>
+        <h1>Connect to start</h1>
+        <p>Pick a model, type a name, and ask about the contents of the corpus.</p>
         <div class="gate-row">
-            <input type="text" id="name" placeholder="Tu nombre" autocomplete="off">
-            <button id="connect" class="btn btn-primary" disabled>Conectar</button>
+            <input type="text" id="name" placeholder="Your name" autocomplete="off">
+            <button id="connect" class="btn btn-primary" disabled>Connect</button>
         </div>
         <p class="hint" id="hint"></p>
     </section>
@@ -359,8 +359,8 @@
 <footer class="composer" id="composer" hidden>
     <div class="composer-inner">
         <textarea id="msg" rows="1"
-                  placeholder="Escribe tu pregunta…    Enter envía · Mayús+Enter salta de línea"></textarea>
-        <button id="send" class="btn btn-primary" disabled>Enviar</button>
+                  placeholder="Type your question…    Enter sends · Shift+Enter adds a line"></textarea>
+        <button id="send" class="btn btn-primary" disabled>Send</button>
     </div>
 </footer>
 
@@ -374,35 +374,34 @@
     let username = "";
     let adminKey = null;
 
-    /* ================================================================= utilidades */
+    /* ================================================================= helpers */
 
-    /** Todo lo que venga del modelo o del corpus pasa por aquí antes de tocar el DOM. */
+    /** Everything coming from the model or the corpus goes through here before it touches the DOM. */
     function escapeHtml(value) {
         return String(value ?? "").replace(/[&<>"']/g, c => ({
             "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
         })[c]);
     }
 
-    /** 1943 -> "1,9 s"  ·  340 -> "340 ms". Coma decimal, que es lo que toca en español. */
+    /** 1943 -> "1.9 s"  ·  340 -> "340 ms". */
     function formatMillis(ms) {
         if (!ms) return "";
-        return ms < 1000 ? ms + " ms" : (ms / 1000).toFixed(1).replace(".", ",") + " s";
+        return ms < 1000 ? ms + " ms" : (ms / 1000).toFixed(1) + " s";
     }
 
     /* ================================================================= markdown
 
-       Renderizador propio en lugar de marked + DOMPurify. Dos razones:
+       A renderer of our own instead of marked + DOMPurify. Two reasons:
 
-       1) Sin CDN y sin ficheros de terceros en el repositorio, así que la interfaz
-          funciona detrás de un cortafuegos — que es la premisa de deploySinConexion.sh.
-       2) La seguridad no depende de un saneador que haya que aplicar en el orden
-          correcto: aquí se ESCAPA PRIMERO todo el texto y solo después se insertan las
-          etiquetas que genera esta función. Un modelo que devuelva <script> produce
-          &lt;script&gt; y no hay forma de que llegue HTML del modelo al DOM.
+       1) No CDN and no third-party files in the repository, so the interface still works behind
+          a firewall — which is the whole premise of deploySinConexion.sh.
+       2) Safety does not depend on running a sanitiser in the right order: here the text is
+          ESCAPED FIRST and only afterwards are the tags this function generates inserted. A model
+          that returns <script> produces &lt;script&gt;, and there is no path for HTML from the
+          model to reach the DOM.
 
-       A cambio cubre un subconjunto de Markdown, que es justo lo que un asistente de
-       preguntas y respuestas produce: encabezados, listas, negrita, cursiva, código,
-       citas y enlaces.
+       In exchange it covers a subset of Markdown, which is exactly what a question-and-answer
+       assistant produces: headings, lists, bold, italics, code, quotes and links.
     ============================================================================== */
 
     function renderMarkdown(source) {
@@ -410,10 +409,10 @@
         const ticks = [];
         let text = escapeHtml(source);
 
-        // Los bloques de código se apartan ANTES que nada: dentro de ellos los asteriscos y las
-        // almohadillas son literales, no marcas. El marcador es <F0>, y usa un "<" a propósito:
-        // el texto ya está escapado, así que un "<" literal es IMPOSIBLE en él y ningún modelo
-        // puede fabricar un marcador falso que se cuele por el reemplazo final.
+        // Code blocks are set aside BEFORE anything else: inside them, asterisks and hashes are
+        // literal, not marks. The placeholder is <F0>, and the "<" is deliberate: the text is
+        // already escaped, so a literal "<" is IMPOSSIBLE in it and no model can forge a
+        // placeholder that sneaks through the final replacement.
         text = text.replace(/```[^\n]*\n([\s\S]*?)```/g, (_, code) => "<F" + (fences.push(code) - 1) + ">");
         text = text.replace(/`([^`\n]+)`/g, (_, code) => "<T" + (ticks.push(code) - 1) + ">");
 
@@ -426,13 +425,13 @@
 
             if (!line.trim()) { closeList(); continue; }
 
-            // Un bloque de código ocupa su línea entera: fuera del <p>, o el HTML sale inválido.
+            // A code block takes a whole line of its own: outside the <p>, or the HTML is invalid.
             if (/^<F\d+>$/.test(line.trim())) { closeList(); out.push(line.trim()); continue; }
 
             const heading = line.match(/^(#{1,4})\s+(.*)$/);
             if (heading) {
                 closeList();
-                const level = Math.min(heading[1].length + 2, 6);   // # -> h3, para no competir con el h1
+                const level = Math.min(heading[1].length + 2, 6);   // # -> h3, so it never competes with the h1
                 out.push("<h" + level + ">" + inlineMarks(heading[2]) + "</h" + level + ">");
                 continue;
             }
@@ -464,10 +463,10 @@
             .replace(/<F(\d+)>/g, (_, i) => "<pre><code>" + fences[i] + "</code></pre>");
     }
 
-    /** Marcas dentro de una línea. El texto YA viene escapado. */
+    /** Marks inside one line. The text is ALREADY escaped by the time it gets here. */
     function inlineMarks(text) {
         return text
-            // El esquema del enlace está fijado en el propio patrón: javascript: no encaja.
+            // The link scheme is pinned in the pattern itself: javascript: does not match.
             .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
                 '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
             .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -475,27 +474,33 @@
     }
 
     /**
-     * Separa el razonamiento de la respuesta.
+     * Splits the reasoning from the answer.
      *
-     * gpt-oss:20b es un modelo de razonamiento y según cómo lo sirva Ollama puede
-     * devolver su cadena de pensamiento pegada delante de la respuesta. Enseñarla tal
-     * cual confunde; esconderla del todo sería tirar información interesante para un
-     * trabajo sobre modelos. Se separa y se ofrece plegada.
+     * gpt-oss:20b is a reasoning model and, depending on how Ollama serves it, it can return its
+     * chain of thought glued in front of the answer. Showing it raw is confusing; hiding it
+     * altogether would throw away something interesting for a project about models. So it is
+     * split off and offered folded.
      */
     function splitThinking(raw) {
         const tagged = String(raw ?? "").match(/^\s*<think(?:ing)?>([\s\S]*?)<\/think(?:ing)?>\s*([\s\S]*)$/i);
         if (tagged) return { thinking: tagged[1].trim(), answer: tagged[2].trim() };
 
-        // Canales del formato harmony, por si llegan sin etiquetas.
+        // Harmony-format channels, in case they arrive without tags.
         const harmony = String(raw ?? "").match(/^\s*analysis\s*([\s\S]*?)assistantfinal\s*([\s\S]*)$/i);
         if (harmony) return { thinking: harmony[1].trim(), answer: harmony[2].trim() };
 
         return { thinking: null, answer: String(raw ?? "") };
     }
 
-    /* ================================================================= fuentes */
+    /* ================================================================= sources */
 
-    /** "warehouse_inventory.csv (fila 12)" -> { name, locator, kind } */
+    /**
+     * "warehouse_inventory.csv (row 12)" -> { name, locator, kind }
+     *
+     * The locator is whatever is inside the last parentheses, whatever it says. That is on
+     * purpose: it comes from Sources.format on the server, and this way "(row 12)", "(page 4)"
+     * or anything added later keeps working without touching this file.
+     */
     function parseSource(source) {
         const value = String(source ?? "");
         const locator = (value.match(/\(([^)]*)\)\s*$/) || ["", ""])[1];
@@ -505,14 +510,14 @@
     }
 
     const ORIGIN_LABEL = {
-        "D":   ["d",  "Solo la búsqueda densa: se encontró por SIGNIFICADO"],
-        "L":   ["l",  "Solo la búsqueda léxica: se encontró por LITERALIDAD (BM25)"],
-        "D+L": ["dl", "Las dos ramas, por caminos independientes: significado Y literalidad"]
+        "D":   ["d",  "Dense search only: found by MEANING"],
+        "L":   ["l",  "Lexical search only: found by the LITERAL WORD (BM25)"],
+        "D+L": ["dl", "Both branches, down independent paths: meaning AND literal match"]
     };
 
     /**
-     * Varias páginas del mismo documento se juntan en "page 2, 3": la pregunta que responde esta
-     * fila es DE QUÉ DOCUMENTO sale la respuesta, y repetir el nombre tres veces la contesta peor.
+     * Several pages of the same document collapse into "page 2, 3": the question this row answers
+     * is WHICH DOCUMENT the answer came from, and repeating the name three times answers it worse.
      */
     function joinLocators(locators) {
         if (!locators.length) return "";
@@ -564,14 +569,14 @@
         return wrap;
     }
 
-    /** El fragmento recortado a una línea de tabla. El completo se despliega al pulsar la fila. */
+    /** The fragment cut down to one table row. The full one unfolds when the row is clicked. */
     function fragmentPreview(text) {
         const flat = String(text ?? "").replace(/\s+/g, " ").trim();
         return flat.length <= 150 ? flat : flat.slice(0, 150) + "…";
     }
 
-    /** La celda "Fuente": el fichero en una línea y el localizador debajo, para que un nombre
-     *  largo no se parta por la mitad ("manual_misiones_espacia / les.pdf"). */
+    /** The "Source" cell: the file on one line and the locator underneath, so a long name does
+     *  not get broken in half ("manual_misiones_espacia / les.pdf"). */
     function sourceCell(source) {
         const parsed = parseSource(source);
         const wrap = document.createElement("span");
@@ -585,7 +590,7 @@
         return wrap;
     }
 
-    /** Una celda: con texto, o con un elemento ya construido. */
+    /** One cell: with text, or with an element that is already built. */
     function cell(className, content) {
         const td = document.createElement("td");
         td.className = className;
@@ -594,9 +599,9 @@
     }
 
     /**
-     * La traza: qué fragmentos vio el modelo, por qué rama llegó cada uno y con qué puntuación.
-     * Plegada por defecto — quien quiera la respuesta la tiene arriba; quien quiera saber POR QUÉ
-     * esa respuesta, la abre.
+     * The trace: which fragments the model saw, which branch brought each one in, and with what
+     * score. Folded by default — whoever wants the answer has it above; whoever wants to know WHY
+     * that answer, opens it.
      */
     function buildTrace(sources) {
         const both = sources.filter(s => s.origin === "D+L").length;
@@ -606,10 +611,10 @@
         details.className = "trace";
 
         const summary = document.createElement("summary");
-        const parts = [sources.length + (sources.length === 1 ? " fragmento" : " fragmentos")];
-        if (both) parts.push(both + " en ambas ramas");
-        if (onlyLexical) parts.push(onlyLexical + " solo léxico");
-        summary.textContent = "Traza de recuperación · " + parts.join(" · ");
+        const parts = [sources.length + (sources.length === 1 ? " fragment" : " fragments")];
+        if (both) parts.push(both + " in both branches");
+        if (onlyLexical) parts.push(onlyLexical + " lexical only");
+        summary.textContent = "Retrieval trace · " + parts.join(" · ");
         details.append(summary);
 
         const body = document.createElement("div");
@@ -620,7 +625,7 @@
 
         const thead = document.createElement("thead");
         const headRow = document.createElement("tr");
-        for (const label of ["Origen", "Fuente", "RRF", "Fragmento"]) {
+        for (const label of ["Branch", "Source", "RRF", "Fragment"]) {
             const th = document.createElement("th");
             th.textContent = label;
             headRow.append(th);
@@ -630,7 +635,7 @@
         const tbody = document.createElement("tbody");
 
         for (const item of sources) {
-            const [cssClass, originTitle] = ORIGIN_LABEL[item.origin] || ["d", "Origen desconocido"];
+            const [cssClass, originTitle] = ORIGIN_LABEL[item.origin] || ["d", "Unknown branch"];
             const badge = document.createElement("span");
             badge.className = "origin " + cssClass;
             badge.textContent = item.origin;
@@ -638,7 +643,7 @@
 
             const row = document.createElement("tr");
             row.className = "row";
-            row.title = "Pulsa para ver el fragmento completo";
+            row.title = "Click to see the full fragment";
             row.append(
                 cell("c-origin", badge),
                 cell("c-src", sourceCell(item.source)),
@@ -646,10 +651,9 @@
                 cell("c-frag", fragmentPreview(item.text))
             );
 
-            // El fragmento COMPLETO, en una fila propia que se despliega. En la tabla va recortado
-            // para que las cuatro columnas quepan, pero lo que hay que poder enseñar —y lo que
-            // convierte esto en una prueba y no en una etiqueta— es el texto que el modelo leyó
-            // de verdad, sin cortar.
+            // The COMPLETE fragment, in a row of its own that unfolds. In the table it is cut
+            // short so the four columns fit, but what has to be showable — and what turns this
+            // into evidence rather than a label — is the text the model actually read, uncut.
             const full = document.createElement("tr");
             full.className = "full";
             full.hidden = true;
@@ -678,15 +682,15 @@
 
         const legend = document.createElement("div");
         legend.className = "legend";
-        legend.textContent = "D = búsqueda densa (bge-m3, significado) · L = búsqueda léxica "
-            + "(BM25, literalidad) · D+L = ambas · RRF = puntuación de la fusión, 1/(60 + puesto) por rama";
+        legend.textContent = "D = dense search (bge-m3, meaning) · L = lexical search "
+            + "(BM25, literal match) · D+L = both · RRF = fusion score, 1/(60 + rank) per branch";
         body.append(legend);
 
         details.append(body);
         return details;
     }
 
-    /* ================================================================= mensajes */
+    /* ================================================================= messages */
 
     function turn(kind) {
         const el = document.createElement("div");
@@ -698,7 +702,7 @@
         const t = turn("user");
         const bubble = document.createElement("div");
         bubble.className = "bubble";
-        bubble.textContent = text;                          // sin markdown: es lo que escribió él
+        bubble.textContent = text;                          // no markdown: this is what they typed
         t.append(bubble);
         $("chat").append(t);
         scrollToBottom();
@@ -709,7 +713,7 @@
 
         const who = document.createElement("div");
         who.className = "who";
-        who.textContent = message.model || message.from || "asistente";
+        who.textContent = message.model || message.from || "assistant";
         t.append(who);
 
         const split = splitThinking(message.message);
@@ -718,11 +722,11 @@
             const think = document.createElement("details");
             think.className = "trace";
             const summary = document.createElement("summary");
-            summary.textContent = "Razonamiento del modelo";
+            summary.textContent = "Model reasoning";
             const body = document.createElement("div");
             body.className = "trace-body";
             const inner = document.createElement("div");
-            inner.className = "frag-text";
+            inner.className = "full-text";
             inner.style.maxHeight = "260px";
             inner.textContent = split.thinking;
             body.append(inner);
@@ -732,7 +736,7 @@
 
         const bubble = document.createElement("div");
         bubble.className = "bubble";
-        bubble.innerHTML = renderMarkdown(split.answer);    // seguro: escapado antes de marcar
+        bubble.innerHTML = renderMarkdown(split.answer);    // safe: escaped before it is marked up
         t.append(bubble);
 
         const sources = Array.isArray(message.sources) ? message.sources : [];
@@ -742,16 +746,16 @@
         } else {
             const none = document.createElement("div");
             none.className = "no-context";
-            none.textContent = "Respondido sin contexto recuperado";
-            none.title = "La búsqueda no devolvió ningún fragmento por encima del umbral: "
-                + "lo que leas sale del modelo, no del corpus.";
+            none.textContent = "Answered with nothing retrieved";
+            none.title = "The search returned no fragment above the threshold: what you are "
+                + "reading comes from the model, not from the corpus.";
             t.append(none);
         }
 
         if (message.millis) {
             const meta = document.createElement("div");
             meta.className = "meta";
-            meta.textContent = formatMillis(message.millis) + " de generación";
+            meta.textContent = formatMillis(message.millis) + " to generate";
             t.append(meta);
         }
 
@@ -789,12 +793,12 @@
         chat.scrollTop = chat.scrollHeight;
     }
 
-    /* ================================================================= conexión */
+    /* ================================================================= connection */
 
     function setStatus(isConnected) {
         connected = isConnected;
         $("status").classList.toggle("on", isConnected);
-        $("status-text").textContent = isConnected ? "Conectado" : "Desconectado";
+        $("status-text").textContent = isConnected ? "Connected" : "Disconnected";
         $("send").disabled = !isConnected;
         $("model").disabled = isConnected;
     }
@@ -803,8 +807,8 @@
         const ready = $("name").value.trim() !== "" && $("model").value !== "";
         $("connect").disabled = !ready;
         $("hint").textContent = $("model").value === ""
-            ? "Elige un modelo para poder conectar."
-            : (ready ? "" : "Escribe un nombre.");
+            ? "Pick a model to be able to connect."
+            : (ready ? "" : "Type a name.");
     }
 
     function connect() {
@@ -812,8 +816,8 @@
         username = $("name").value.trim();
         if (!username || !$("model").value) { refreshGate(); return; }
 
-        // wss:// si la página se sirve por HTTPS (si no, el navegador bloquearía el
-        // socket por contenido mixto).
+        // wss:// when the page is served over HTTPS, or the browser would block the socket as
+        // mixed content.
         const proto = location.protocol === "https:" ? "wss://" : "ws://";
         socket = new WebSocket(proto + location.host + "/chat/" + encodeURIComponent(username));
 
@@ -828,7 +832,7 @@
         socket.onmessage = event => {
             const message = JSON.parse(event.data);
             if (message.type === "USER_JOINED") {
-                appendSystem("Conectado como " + message.from);
+                appendSystem("Connected as " + message.from);
                 return;
             }
             if (message.type !== "CHAT_MESSAGE") return;
@@ -844,14 +848,14 @@
             }
         };
 
-        socket.onerror = () => { hideTyping(); appendSystem("Error de conexión con el servidor.", true); };
+        socket.onerror = () => { hideTyping(); appendSystem("Connection error with the server.", true); };
 
-        // Se dispara también si el servidor se reinicia: sin esto, la interfaz se
-        // queda "conectada" y los mensajes se pierden en silencio.
+        // This also fires when the server restarts: without it, the interface stays "connected"
+        // and messages are lost in silence.
         socket.onclose = () => {
             setStatus(false);
             hideTyping();
-            appendSystem("Conexión cerrada. Vuelve a conectar para seguir.", true);
+            appendSystem("Connection closed. Connect again to carry on.", true);
             $("gate").hidden = false;
             $("gate").classList.add("compact");
             $("composer").hidden = true;
@@ -861,11 +865,11 @@
 
     function send() {
         if (!connected || !socket || socket.readyState !== WebSocket.OPEN) {
-            appendSystem("No estás conectado.", true);
+            appendSystem("You are not connected.", true);
             return;
         }
         const text = $("msg").value.trim();
-        if (!text) return;                                  // el servidor descarta los vacíos
+        if (!text) return;                                  // the server drops empty ones anyway
 
         socket.send(JSON.stringify({
             type: "CHAT_MESSAGE", from: username, message: text, llm: $("model").value
@@ -876,7 +880,7 @@
         $("send").disabled = true;
     }
 
-    /* ================================================================= modelos */
+    /* ================================================================= models */
 
     async function loadModels() {
         const select = $("model");
@@ -892,10 +896,10 @@
                 option.textContent = slot + " → " + model;
                 select.append(option);
             }
-            select.selectedIndex = 0;                       // el primero del enum ModelSlot
+            select.selectedIndex = 0;                       // the first one of the ModelSlot enum
         } catch (e) {
-            // Sin backend no hay slots reales; se ofrece lo mínimo para no dejar la
-            // interfaz inservible, y se avisa de que las etiquetas pueden no coincidir.
+            // With no backend there are no real slots; offer the bare minimum so the interface is
+            // not left useless, and warn that the labels may not match what is configured.
             select.innerHTML = "";
             for (const slot of ["gpto", "llama", "deepseek", "mistral"]) {
                 const option = document.createElement("option");
@@ -903,18 +907,18 @@
                 option.textContent = slot;
                 select.append(option);
             }
-            $("hint").textContent = "No se ha podido leer la lista de modelos del servidor.";
+            $("hint").textContent = "Could not read the list of models from the server.";
         }
         refreshGate();
     }
 
-    /* ================================================================= administración */
+    /* ================================================================= administration */
 
     function adminHeaders() {
-        // La clave se pide la PRIMERA vez que se usa un botón de administración (lazy),
-        // no en cada carga de página.
+        // The key is asked for the FIRST time an admin button is used (lazily), not on every
+        // page load.
         if (adminKey === null) {
-            adminKey = prompt("Introduce la clave de administrador para esta sesión:") || "";
+            adminKey = prompt("Enter the admin key for this session:") || "";
         }
         return { "X-API-KEY": adminKey };
     }
@@ -929,15 +933,15 @@
             if (response.ok) {
                 appendSystem(body);
             } else if (response.status === 401 || response.status === 403) {
-                adminKey = null;                            // se vuelve a pedir la próxima vez
-                appendSystem("Clave de administrador incorrecta.", true);
+                adminKey = null;                            // ask for it again next time
+                appendSystem("Wrong admin key.", true);
             } else if (response.status === 409) {
-                appendSystem("Ya hay un reindexado en curso. Espera a que termine.", true);
+                appendSystem("A reindex is already running. Wait for it to finish.", true);
             } else {
                 appendSystem(body || ("Error " + response.status), true);
             }
         } catch (e) {
-            appendSystem("No se ha podido contactar con el servidor.", true);
+            appendSystem("Could not reach the server.", true);
         } finally {
             button.disabled = false;
         }
@@ -953,7 +957,7 @@
 
         $("upload").disabled = true;
         $("admin-menu").open = false;
-        appendSystem("Subiendo e indexando " + file.name + "…");
+        appendSystem("Uploading and indexing " + file.name + "…");
 
         try {
             const response = await fetch("/service/admin/upload",
@@ -964,23 +968,23 @@
                 appendSystem(body);
                 $("file").value = "";
             } else if (response.status === 413) {
-                // El límite lo fija quarkus.http.limits.max-body-size. Sin este caso, el
-                // navegador enseña un error genérico y parece un fallo del servidor.
-                appendSystem("El archivo supera el límite de subida del servidor (20 MB).", true);
+                // The limit is set by quarkus.http.limits.max-body-size. Without this branch the
+                // browser shows a generic error and it looks like the server broke.
+                appendSystem("The file is over the server's upload limit (15 MB).", true);
             } else if (response.status === 401 || response.status === 403) {
                 adminKey = null;
-                appendSystem("Clave de administrador incorrecta.", true);
+                appendSystem("Wrong admin key.", true);
             } else {
                 appendSystem(body || ("Error " + response.status), true);
             }
         } catch (e) {
-            appendSystem("No se ha podido subir el archivo.", true);
+            appendSystem("Could not upload the file.", true);
         } finally {
             $("upload").disabled = !$("file").files.length;
         }
     }
 
-    /* ================================================================= arranque */
+    /* ================================================================= start-up */
 
     document.addEventListener("DOMContentLoaded", () => {
         loadModels();
@@ -991,7 +995,7 @@
         $("model").addEventListener("change", refreshGate);
         $("name").addEventListener("keydown", e => { if (e.key === "Enter") connect(); });
 
-        // Enter envía, Mayús+Enter salta de línea, y el cuadro crece con el texto.
+        // Enter sends, Shift+Enter adds a line, and the box grows with the text.
         $("msg").addEventListener("keydown", e => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
         });
@@ -1004,16 +1008,16 @@
         $("upload").addEventListener("click", uploadFile);
 
         $("reset").addEventListener("click", () => {
-            if (!confirm("Se reconstruirá el índice desde el corpus versionado. Tarda unos segundos. ¿Continuar?")) return;
-            adminPost("/service/admin/reset", $("reset"), "Reconstruyendo el índice…");
+            if (!confirm("The index will be rebuilt from the versioned corpus. It takes a few seconds. Continue?")) return;
+            adminPost("/service/admin/reset", $("reset"), "Rebuilding the index…");
         });
 
         $("clean").addEventListener("click", () => {
-            if (!confirm("Se borrarán todos los archivos subidos y se reconstruirá el índice con el corpus base. ¿Continuar?")) return;
-            adminPost("/service/admin/clean-uploads", $("clean"), "Limpiando subidas y reconstruyendo el índice…");
+            if (!confirm("Every uploaded file will be deleted and the index rebuilt from the base corpus. Continue?")) return;
+            adminPost("/service/admin/clean-uploads", $("clean"), "Cleaning uploads and rebuilding the index…");
         });
 
-        // Cerrar el menú de administración al pulsar fuera.
+        // Close the admin menu when clicking outside it.
         document.addEventListener("click", e => {
             const menu = $("admin-menu");
             if (menu.open && !menu.contains(e.target)) menu.open = false;

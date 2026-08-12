@@ -106,7 +106,7 @@ public class RagRetriever {
                 oneLine(lexicalResult.query()),oneLine(question));
 
         if (top.isEmpty()) {
-            log.debug("{} -> 0 chunks (sin contexto relevante)", header);
+            log.debug("{} -> 0 chunks (nothing relevant)", header);
             return RetrievedContext.empty();
         }
 

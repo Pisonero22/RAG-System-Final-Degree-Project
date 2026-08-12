@@ -83,7 +83,7 @@ public class ChatService {
         // 0) Guardrail at the door, before spending the rewriter (an LLM call) and the vector
         //    search on a message we are going to reject anyway.
         if (isInjection(username, question)) {
-            log.info("[{}] mensaje bloqueado por el detector de prompt injection", username);
+            log.info("[{}] message blocked by the prompt injection detector", username);
             return Answer.plain("Mensaje bloqueado: se ha detectado un posible intento de prompt injection.");
         }
 
@@ -107,12 +107,11 @@ public class ChatService {
 
             String answer = assistant.chat(slot.slot(), username,interpretation, context.text(), question);
             long ms = (System.nanoTime() - t0) / 1_000_000;
-            log.info("[{}] slot='{}' modelo='{}' respondió en {} ms",
-                    username, slot, modelTag, ms);
+            log.info("[{}] slot='{}' model='{}' answered in {} ms", username, slot, modelTag, ms);
             return new Answer(answer,modelTag,ms,context.chunks());
 
         } catch (Exception e) {
-            log.error("[{}] slot='{}' modelo='{}': error procesando mensaje", username, slot, modelTag, e);
+            log.error("[{}] slot='{}' model='{}': failed to process the message", username, slot, modelTag, e);
             return Answer.plain("Ha ocurrido un error procesando tu mensaje. Inténtalo de nuevo.");
         }
     }
@@ -121,10 +120,10 @@ public class ChatService {
         try {
             double score = detector.isInjection(question);
             long ms = (System.nanoTime() - t0) / 1_000_000;
-            log.debug("[{}] guardrail ({} ms) score={} para \"{}\"", username, ms, score, truncate(question));
+            log.debug("[{}] guardrail ({} ms) score={} for \"{}\"", username, ms, score, truncate(question));;
             return score > injectionThreshold;
         } catch (Exception e) {
-            log.warn("[{}] el detector de inyección falló ({} ms), se permite el mensaje: {}",
+            log.warn("[{}] injection detector failed ({} ms), letting the message through: {}",
                     username, (System.nanoTime() - t0) / 1_000_000, e.getMessage());
             return false;
         }
@@ -153,29 +152,27 @@ public class ChatService {
             String rewritten = queryRewriter.rewrite(history, question);
             long rewriteMs = (System.nanoTime() - t0) / 1_000_000;
             if (rewritten == null || rewritten.isBlank()) {
-                log.debug("[{}] reescritura vacía ({} ms), se usa la question original", username, rewriteMs);
+                log.debug("[{}] empty rewrite ({} ms), keeping the original question", username, rewriteMs);
                 return question;
             }
             rewritten = rewritten.strip();
             // It has to come back as ONE short query. If it starts chatting, we do not trust it.
             if (rewritten.contains("\n") || rewritten.length() > 300) {
-                log.debug("[{}] reescritura descartada ({} ms, formato inesperado)",
-                        username, rewriteMs);
+                log.debug("[{}] rewrite discarded ({} ms, unexpected format)", username, rewriteMs);
                 return question;
             }
             // Cosmetic change only: keep the ORIGINAL question.
             if (differsOnlyInPunctuation(rewritten, question)) {
-                log.debug("[{}] reescritura cosmética descartada ({} ms): \"{}\"",
-                        username, rewriteMs, rewritten);
+                log.debug("[{}] cosmetic rewrite discarded ({} ms): \"{}\"", username, rewriteMs, rewritten);
                 return question;
             }
+
             log.debug("[{}] query rewritten ({} ms): \"{}\" -> \"{}\"",
                     username, rewriteMs, question, rewritten);
 
             return rewritten;
         } catch (Exception e) {
-            log.warn("[{}] falló la reescritura de query, se usa la original: {}",
-                    username, e.getMessage());
+            log.warn("[{}] query rewrite failed, keeping the original: {}", username, e.getMessage());
             return question;
         }
     }

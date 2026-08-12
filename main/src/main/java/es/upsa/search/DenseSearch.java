@@ -59,8 +59,7 @@ public class DenseSearch {
                 .maxResults(candidates)          // the real cut-off is the caller's decision
                 .minScore(minScore)
                 .build();
-        log.info("Búsqueda densa lista: embeddings='{}' ({} dims), minScore={}",
-                embeddingModelId, dimension, minScore);
+        log.info("Dense search ready: embeddings='{}' ({} dims), minScore={}", embeddingModelId, dimension, minScore);
     }
 
     /** Chunks ordered by similarity, at most rag.retriever.candidates of them. */

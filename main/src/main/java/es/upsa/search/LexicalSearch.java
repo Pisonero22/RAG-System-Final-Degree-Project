@@ -143,7 +143,7 @@ public class LexicalSearch {
             String relaxed = String.join(" ", terms);
             chunks = run(relaxed, limit);
             if (!chunks.isEmpty()) {
-                log.debug("Consulta léxica relajada: \"{}\" -> \"{}\"", query, relaxed);
+                log.debug("Lexical query relaxed: \"{}\" -> \"{}\"", query, relaxed);
                 return new LexicalResult(relaxed, chunks);
             }
         }
@@ -211,8 +211,7 @@ public class LexicalSearch {
                     .filter(Objects::nonNull)
                     .toList();
         } catch (Exception e) {
-            log.warn("Búsqueda léxica fallida ('{}'), se continúa solo con la densa: {}",
-                    query, e.toString());
+            log.warn("Lexical search failed ('{}'), carrying on with the dense branch only: {}", query, e.toString());
             return List.of();
         }
     }
