@@ -3,34 +3,33 @@ set -euo pipefail
 
 cleanup() {
   echo
-  echo "Deteniendo servicios de Docker Compose…"
+  echo "Stopping Docker Compose services…"
   docker compose down
 }
 trap cleanup EXIT
 
 if ! command -v ollama >/dev/null 2>&1; then
-  echo "Ollama no está instalado o no está en PATH."
+  echo "Ollama is not installed or not on PATH."
   exit 1
 fi
 
-echo "Levantando servicios de Docker Compose en background…"
+echo "Starting Docker Compose services in the background…"
 docker compose up -d
 
-echo "Esperando a que Redis responda PONG…"
+echo "Waiting for Redis to answer PONG…"
 until docker exec redis redis-cli ping 2>/dev/null | grep -q PONG; do
   sleep 1
 done
 
-echo "Redis está listo."
+echo "Redis is ready."
 
-# Entrar al módulo Quarkus
 if [[ -d main ]]; then
-  echo "Entrando al módulo 'main' para lanzar Quarkus…"
+  echo "Entering the 'main' module to launch Quarkus…"
   cd main
 else
-  echo "No he encontrado el directorio 'main'."
+  echo "Could not find the 'main' directory."
   exit 1
 fi
 
-echo "Iniciando Quarkus en modo dev… (Ctrl+C para salir)"
+echo "Starting Quarkus in dev mode… (Ctrl+C to quit)"
 ../mvnw quarkus:dev

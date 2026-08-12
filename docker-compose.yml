@@ -7,7 +7,7 @@ services:
       - "8001:8001" # RedisInsight (GUI): http://localhost:8001
     restart: always
     volumes:
-      # Persistencia: los embeddings sobreviven a paradas y reinicios.
-      # Si cambias de modelo de embeddings o de dimensión: borra el volumen
+      # Persistence: the embeddings survive stops and restarts.
+      # If you change the embedding model or the dimension, delete this volume.
       - ./redis-data:/data
 
