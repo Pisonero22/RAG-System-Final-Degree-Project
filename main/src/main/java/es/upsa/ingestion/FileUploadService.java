@@ -74,7 +74,7 @@ public class FileUploadService {
         String base = Paths.get(fileName).getFileName().toString();
         String sanitized = base.replaceAll("[^a-zA-Z0-9._-]", "_");
         if (sanitized.isBlank() || sanitized.equals(".") || sanitized.equals("..")) {
-            throw new IllegalArgumentException("Invalid file name\"");
+            throw new IllegalArgumentException("Invalid file name: " + fileName );
         }
         return sanitized;
     }

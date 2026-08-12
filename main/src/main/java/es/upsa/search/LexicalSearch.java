@@ -91,6 +91,25 @@ public class LexicalSearch {
     private static final Pattern HAS_DIGIT = Pattern.compile("\\p{N}");
 
     /**
+     * The lexical branch abstains when the query cannot be a useful literal search.
+     *
+     * The dangerous case is a SINGLE bare term: "y el 7?" yields the query "7", and a lone digit
+     * matches hundreds of prices, identifiers and week numbers across the corpus.
+     *
+     * Two or more terms already make a conjunctive search meaningful even when none of them is a
+     * long word. Measured: the query "SKU 2041" was rejected by the previous rule (it has no word
+     * of four letters or more) even though the lexical branch is the ONLY one able to resolve an
+     * identifier — for that same query the dense branch ranked the exact row 4th out of 9, inside
+     * a score range of 0.018.
+     */
+    static boolean isWorthSearching(String query) {
+        if (query.isBlank()) {
+            return false;
+        }
+        return query.split("\\s+").length >= 2 || CONTENT_WORD.matcher(query).find();
+    }
+
+    /**
      * Conjunctive search with progressive relaxation.
      *
      * AND buys precision, but it is brittle: one term missing from the index kills the whole
@@ -101,25 +120,6 @@ public class LexicalSearch {
      * When the full conjunction comes back empty, one term is dropped and it runs again. It only
      * relaxes on EMPTY: if the full AND found something, that result is always the better one and
      * is left alone, so the happy path never pays for an extra query.
-     */
-    static boolean isWorthSearching(String query) {
-        if (query.isBlank()) {
-            return false;
-        }
-        return query.split("\\s+").length >= 2 || CONTENT_WORD.matcher(query).find();
-    }
-
-    /**
-     * Búsqueda conjuntiva con relajación progresiva.
-     *
-     * El AND da precisión, pero es frágil: un solo término ausente del índice anula la consulta
-     * entera. Medido: "¿Cuál es el precio del SKU-2041?" produce "precio SKU 2041" y devuelve CERO,
-     * porque el almacén está en inglés y ningún fragmento contiene "precio" y "SKU" a la vez —
-     * arrastrando consigo a "SKU" y "2041", que sí habrían encontrado la fila.
-     *
-     * Cuando la conjunción completa devuelve cero, se reintenta quitando un término y se repite.
-     * Solo se relaja ante el VACÍO: si el AND completo encontró algo, ese resultado es siempre mejor
-     * y no se toca, de modo que el camino feliz no paga ni una consulta extra.
      */
     public LexicalResult search(String question, int limit) {
         String query = toRediSearchQuery(question);

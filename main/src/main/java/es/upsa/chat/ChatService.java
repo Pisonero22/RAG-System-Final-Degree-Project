@@ -102,8 +102,8 @@ public class ChatService {
             // its reading of the question triggers rule 4 — ignore the context, answer from
             // memory — and the whole retrieval is thrown away.
             String interpretation = query.equals(question) ? ""
-                    : "La búsqueda del context se ha realizado interpretando la pregunta como: \""
-                    + query + "\". Si el context encaja con esa interpretación, úsalo.";
+                    : "La búsqueda del contexto se ha realizado interpretando la pregunta como: \""
+                    + query + "\". Si el contexto encaja con esa interpretación, úsalo.";
 
             String answer = assistant.chat(slot.slot(), username,interpretation, context.text(), question);
             long ms = (System.nanoTime() - t0) / 1_000_000;

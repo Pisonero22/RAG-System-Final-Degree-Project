@@ -11,10 +11,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * La regla 4 del system prompt cita LITERALMENTE la cadena que RagRetriever devuelve cuando no
- * recupera nada. Son dos copias del mismo texto en dos ficheros distintos: si una cambia y la otra
- * no, la regla deja de dispararse y el modelo tratará el aviso de "sin contexto" como si fuera
- * contexto real. No hay ninguna otra cosa que detecte esa desincronización.
+ * Rule 4 of the system prompt quotes WORD FOR WORD the string RagRetriever returns when it
+ * retrieves nothing. Two copies of the same text in two different files: if one changes and the
+ * other does not, the rule stops firing and the model treats the "no context" notice as if it were
+ * real context. Nothing else would catch that drift.
  */
 class RagAssistantPromptTest {
 

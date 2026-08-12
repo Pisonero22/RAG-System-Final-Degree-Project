@@ -76,7 +76,7 @@ public class ChatWebSocket {
         }
         String username = connection.pathParam("username");
 
-        // Eco del mensaje del usuario SOLO a su propia conexión.
+        // Echo the user's own message back to their connection ONLY.
         connection.sendTextAndAwait(ChatMessage.plain(MessageType.CHAT_MESSAGE, username,
                 message.message(), message.llm(), false));
 

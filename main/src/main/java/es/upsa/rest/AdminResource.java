@@ -63,7 +63,7 @@ public class AdminResource {
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
         } catch (IOException e) {
-            return Response.serverError().entity("Could not save the file:  " + e.getMessage()).build();
+            return Response.serverError().entity("Could not save the file: " + e.getMessage()).build();
         }
 
         try {
@@ -73,7 +73,7 @@ public class AdminResource {
             // not pollute later full reingests.
             Files.deleteIfExists(storedFile);
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("El fileStream could not process so was discarted: " + e.getMessage())
+                    .entity("The file could not be processed and was discarded: " + e.getMessage())
                     .build();
         }
         return Response.ok("File saved and ingested: " + storedFile.getFileName()).build();
