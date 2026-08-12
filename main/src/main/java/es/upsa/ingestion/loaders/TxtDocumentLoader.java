@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.util.List;
 
+
 @ApplicationScoped
 public class TxtDocumentLoader implements DocumentLoader {
 
@@ -39,7 +40,7 @@ public class TxtDocumentLoader implements DocumentLoader {
             log.warn("No hay documentos de text en '{}'.", filePath);
             return List.of();
         }
-        // Documento en blanco: se omite, no se aborta el lote.
+        // A blank file is dropped, not fatal: one of them must not cancel the whole batch.
         return documents.stream()
                 .filter(d -> d.text() != null && !d.text().isBlank())
                 .toList();

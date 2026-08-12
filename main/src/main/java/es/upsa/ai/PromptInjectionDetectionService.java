@@ -5,6 +5,15 @@ import dev.langchain4j.service.UserMessage;
 import io.quarkiverse.langchain4j.RegisterAiService;
 import jakarta.enterprise.context.ApplicationScoped;
 
+/**
+ * Guardrail: scores how likely a user message is an attempt to manipulate the assistant.
+ *
+ * No memory on purpose. Every message is judged on its own, so nothing said earlier in the
+ * conversation can soften the score of the one being checked.
+ *
+ * It returns a number and not a yes/no, so the decision stays in ChatService behind a
+ * configurable threshold instead of being baked into a small model's judgement.
+ */
 @RegisterAiService(chatMemoryProviderSupplier = RegisterAiService.NoChatMemoryProviderSupplier.class)
 @ApplicationScoped
 public interface PromptInjectionDetectionService {

@@ -10,14 +10,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Recuperación de contexto (RAG explícito).
+ * Context retrieval (explicit RAG).
  *
- * Orquesta las dos búsquedas y las fusiona; el contexto resultante viaja en el
- * SYSTEM MESSAGE del asistente y no en la memoria conversacional. Motivo
- * (verificado en quarkus-langchain4j 0.26.2): al enganchar un RetrievalAugmentor
- * al AI Service, el UserMessage que se guarda en la ChatMemory es el YA
- * AUMENTADO, de modo que la ventana se llena de contextos antiguos que compiten
- * entre sí.
+ * Runs both searches and fuses them. The resulting context travels in the assistant's SYSTEM
+ * MESSAGE and not in the conversational memory, and that is deliberate: with a RetrievalAugmentor
+ * hooked to the AI Service (verified on quarkus-langchain4j 0.26.2) the UserMessage stored in the
+ * ChatMemory is the ALREADY AUGMENTED one, so the window fills up with old contexts competing
+ * against each other.
  */
 @ApplicationScoped
 public class RagRetriever {
@@ -33,63 +32,61 @@ public class RagRetriever {
     @Inject
     RrfFusion fusion;
 
-    /** Con false, el sistema se comporta exactamente como antes (solo búsqueda
-     *  densa). Permite medir el efecto de la hibridación en la memoria del TFG. */
+    /** With false the system behaves exactly as it did before: dense search only. It is what
+     *  makes the effect of hybrid retrieval measurable for the report. */
     @ConfigProperty(name = "rag.hybrid.enabled", defaultValue = "true")
     boolean hybridEnabled;
 
-    /** Candidatos que aporta cada búsqueda a la fusión. */
+    /** How many candidates each branch hands to the fusion. */
     @ConfigProperty(name = "rag.retriever.candidates")
     int candidates;
 
-    /** Fragmentos que acaban en el contexto del modelo. */
+    /** How many chunks end up in the model's context. */
     @ConfigProperty(name = "rag.retriever.max-results", defaultValue = "3")
     int maxResults;
 
     /**
-     * Un fragmento tal y como llegó al modelo, con todo lo necesario para
-     * justificar la respuesta ante quien la lee.
+     * One chunk exactly as it reached the model, with everything needed to justify the answer to
+     * whoever is reading it.
      *
-     * Lleva el ORIGEN y la PUNTUACIÓN, y no solo el nombre del fichero, porque
-     * son los dos datos que responden a la pregunta que de verdad importa:
-     * "¿por qué el sistema eligió este fragmento?". Un chunk con origen "D+L"
-     * lo encontraron las dos ramas por caminos independientes —el significado y
-     * la literalidad— y esa coincidencia es la tesis del trabajo hecha visible.
-     * Hasta ahora esta información existía, pero solo en el log del servidor.
+     * It carries the BRANCH and the SCORE, and not just the file name, because those are the two
+     * facts that answer the question that actually matters: why did the system pick this chunk?
+     * A chunk with origin "D+L" was found by both branches down independent paths — meaning and
+     * literal match — and that agreement is the thesis of this work made visible. Until now the
+     * information existed, but only in the server log.
      *
-     * @param source procedencia formateada por Sources.format
-     * @param origin "D" (densa), "L" (léxica) o "D+L" (ambas)
-     * @param score  puntuación RRF acumulada
-     * @param text   el fragmento literal que se le pasó al modelo
+     * @param source where it came from, formatted by Sources.format
+     * @param origin "D" (dense), "L" (lexical) or "D+L" (both)
+     * @param score  accumulated RRF score
+     * @param text   the literal fragment handed to the model
      */
     public record Retrieved(String source, String origin, double score, String text) {}
 
     /**
-     * El contexto listo para el prompt Y los fragmentos que lo componen.
+     * The context ready for the prompt AND the chunks it is made of.
      *
-     * Van juntos a propósito: son el mismo resultado visto de dos maneras, y
-     * separarlos obligaría a recuperar dos veces o a recomponer fuera lo que
-     * aquí ya está construido.
+     * They travel together on purpose: they are the same result seen two ways, and splitting them
+     * would mean retrieving twice, or rebuilding outside what is already built here.
      */
     public record RetrievedContext(String text, List<Retrieved> chunks) {
 
-        /** Sin contexto: el texto es el aviso que la regla 4 del prompt cita literalmente. */
+        /** No context: the text is the notice that rule 4 of the prompt quotes word for word. */
         static RetrievedContext empty() {
             return new RetrievedContext(NO_CONTEXT, List.of());
         }
 
-        /** ¿Se respondió sin ningún fragmento recuperado? La interfaz lo dice en voz alta. */
+        /** Answered with nothing retrieved? The interface says so out loud. */
         public boolean isEmpty() {
             return chunks.isEmpty();
         }
     }
 
     /**
-     * Devuelve el contexto formateado (con su procedencia) listo para inyectar
-     * en el system message. Una sola entrada de log por question, con todo lo
-     * necesario para explicar el resultado: tiempo, modelo de embeddings,
-     * candidatos de cada rama, CONSULTA LÉXICA enviada y origin de cada
-     * chunk — D (densa), L (léxica) o D+L (ambas).
+     * The formatted context, sources included, ready to drop into the system message.
+     *
+     * One log entry per question, with everything needed to explain the outcome: time, embedding
+     * model, candidates from each branch, the LEXICAL QUERY that was actually sent, and the
+     * branch behind every chunk — D (dense), L (lexical) or D+L (both).
      */
     public RetrievedContext retrieveContext(String question) {
         long t0 = System.nanoTime();
@@ -129,10 +126,10 @@ public class RagRetriever {
         return new RetrievedContext(context.toString(), List.copyOf(retrieved));
     }
 
-    /** Aplana y trunca para que cada chunk ocupe UNA línea del log. */
+    /** Flattens and cuts so every chunk takes exactly ONE line of the log. */
     private static String truncate(String text) {
-        String plano = text.replaceAll("\\s+", " ").trim();
-        return plano.length() <= 100 ? plano : plano.substring(0, 100) + "...";
+        String flat = text.replaceAll("\\s+", " ").trim();
+        return flat.length() <= 100 ? flat : flat.substring(0, 100) + "...";
     }
     /** Flattens any whitespace so a user message can never break the one-line-per-query log. */
     private static String oneLine(String text) {

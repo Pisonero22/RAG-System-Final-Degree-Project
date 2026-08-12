@@ -6,23 +6,20 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import java.util.*;
 
 /**
- * Reciprocal Rank Fusion: combina varias listas ordenadas en una sola.
- * Cada chunk suma peso/(k + puesto) por cada lista en la que aparece.
+ * Reciprocal Rank Fusion: merges several ranked lists into one. Every chunk adds
+ * weight / (k + position) for each list it shows up in.
  *
- * Se usan PUESTOS y no puntuaciones porque las dos escalas son incomparables
- * (coseno entre 0,7 y 0,9 frente a BM25 sin techo) y normalizarlas introduce
- * artefactos: una búsqueda en la que todo puntúa mal se estiraría hasta parecer
- * tan buena como una excelente.
+ * RANKS and not scores, because the two scales are not comparable — cosine sits between 0.7 and
+ * 0.9, BM25 has no ceiling — and normalising them creates artefacts: a search where everything
+ * scored badly would be stretched until it looked as good as an excellent one.
  *
- * Con k=60 (el valor convencional) las diferencias entre puestos consecutivos
- * son pequeñas, de modo que aparecer en AMBAS listas pesa más que ser el
- * primero de una sola: exactamente el comportamiento que se busca, porque un
- * chunk hallado por significado Y por literalidad es casi siempre el bueno.
+ * With k=60, the conventional value, the gaps between consecutive ranks are small, so showing up
+ * in BOTH lists is worth more than being first in only one. That is exactly the behaviour we are
+ * after: a chunk found by meaning AND by literal match is almost always the right one.
  *
- * No tiene dependencias externas: es una función pura, y por tanto se puede
- * probar sin levantar Redis ni ningún modelo.
+ * No external dependencies. It is a pure function, and it can be tested without Redis or any
+ * model running.
  */
-
 @ApplicationScoped
 public class RrfFusion {
 
@@ -30,24 +27,22 @@ public class RrfFusion {
     @ConfigProperty(name = "rag.fusion.k", defaultValue = "60")
     int k;
 
-    /** Peso de la lista densa en la suma RRF. Ver el javadoc de pesoLexico: ambos van a 1.0. */
+    /** Weight of the dense list in the RRF sum. See lexicalWeight below: both stay at 1.0. */
     @ConfigProperty(name = "rag.fusion.dense-weight", defaultValue = "1.0")
     double denseWeight;
     /**
-     * Ambas ramas pesan igual. Se probó un peso léxico menor (0,7), pensando en
-     * las coincidencias casuales de las preguntas conversacionales, y resultó
-     * anular la rama léxica por completo: con k=60, 0,7/61 es menor que 1,0/70,
-     * de modo que el PEOR resultado denso superaba al MEJOR resultado léxico y
-     * ningún chunk léxico llegaba nunca a los tres finales.
+     * Both branches weigh the same. A lower lexical weight (0.7) was tried, aimed at the
+     * accidental matches of conversational questions, and it wiped the lexical branch out
+     * completely: with k=60, 0.7/61 falls below 1.0/70, so the WORST dense result beat the BEST
+     * lexical one and no lexical chunk ever reached the final three.
      *
-     * El ruido conversacional se resolvió donde corresponde —en la query, con
-     * semántica conjuntiva y filtro de palabras vacías— y no penalizando la rama
-     * entera.
+     * The conversational noise was fixed where it belongs — in the query, with conjunctive
+     * semantics and a stop-word filter — and not by penalising a whole branch.
      */
     @ConfigProperty(name = "rag.fusion.lexical-weight", defaultValue = "1.0")
     double lexicalWeight;
 
-    /** Un chunk fusionado: con su origin ("D", "L" o "D+L") y su puntuación. */
+    /** A fused chunk, with the branch that found it ("D", "L" or "D+L") and its score. */
     public record Result(Chunk chunk, String origin, double score) {}
 
     public List<Result> fuse(List<Chunk> denseChunks, List<Chunk> lexicalChunks, int limit) {
@@ -66,17 +61,17 @@ public class RrfFusion {
     }
 
     private void accumulate(List<Chunk> chunks, double weight, String label,
-                            Map<String, Double> puntos, Map<String, Chunk> byText,
-                            Map<String, String> origen) {
+                            Map<String, Double> scores, Map<String, Chunk> byText,
+                            Map<String, String> origins) {
         Set<String> alreadyScored = new HashSet<>();
         for (int i = 0; i < chunks.size(); i++) {
             Chunk chunk = chunks.get(i);
             if (!alreadyScored.add(chunk.text())) {
-                continue;                       // ya puntuó en esta rama, con mejor puesto
+                continue;                       // already scored in this branch, at a better rank
             }
-            puntos.merge(chunk.text(), weight / (k + i + 1), Double::sum);
+            scores.merge(chunk.text(), weight / (k + i + 1), Double::sum);
             byText.putIfAbsent(chunk.text(), chunk);
-            origen.merge(chunk.text(), label, (ya, nuevo) -> ya + "+" + nuevo);
+            origins.merge(chunk.text(), label, (ya, nuevo) -> ya + "+" + nuevo);
         }
     }
 

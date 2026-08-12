@@ -26,7 +26,8 @@ public class PdfDocumentLoader implements DocumentLoader {
 
     private static final Logger log = LoggerFactory.getLogger(PdfDocumentLoader.class);
 
-
+    /** How much of the previous page is prepended to each page. A sentence, a table or a
+     *  procedure that runs across the page break stays whole in at least one chunk. */
     private static final int BRIDGE_CHARS = 300;
 
     @Override
@@ -57,17 +58,17 @@ public class PdfDocumentLoader implements DocumentLoader {
     }
 
     private List<Document> loadPdf(Path pdfPath) throws IOException {
-        // Sin el prefijo UUID de la subida: "a8a7c73a-..._PlayStation_5.pdf" -> "PlayStation_5.pdf"
+        // Drops the UUID prefix uploads add: "a8a7c73a-..._PlayStation_5.pdf" -> "PlayStation_5.pdf"
         String cleanName = pdfPath.getFileName().toString().replaceFirst("^[0-9a-fA-F-]{36}_", "");
-        // ---- FASE 1: extraer el text de las páginas que tienen text ----
-        List<Integer> pageNumbers = new ArrayList<>();   // número REAL de página (para la cita)
+
+        List<Integer> pageNumbers = new ArrayList<>();   // REAL page number: blank pages are skipped, so the index drifts from it
         List<String>  pageTexts  = new ArrayList<>();
 
         try (PDDocument pdf = PDDocument.load(pdfPath.toFile())) {
             PDFTextStripper stripper = new PDFTextStripper();
-            int totalPaginas = pdf.getNumberOfPages();
+            int totalPages = pdf.getNumberOfPages();
 
-            for (int pageNum = 1; pageNum <= totalPaginas; pageNum++) {
+            for (int pageNum = 1; pageNum <= totalPages; pageNum++) {
                 stripper.setStartPage(pageNum);
                 stripper.setEndPage(pageNum);
                 String text = stripper.getText(pdf);
@@ -100,7 +101,7 @@ public class PdfDocumentLoader implements DocumentLoader {
 
     }
 
-    /** Últimos maxChars caracteres, sin empezar a mitad de palabra. */
+    /** The last maxChars characters, without starting mid-word. */
     private static String tail(String text, int maxChars) {
         if (text.length() <= maxChars) {
             return text;

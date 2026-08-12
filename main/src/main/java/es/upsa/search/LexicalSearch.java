@@ -15,45 +15,51 @@ import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+
+/**
+ * Literal search: sends the question to RediSearch as a conjunction of terms and returns the
+ * chunks containing all of them.
+ *
+ * It finds by the exact WORD, which is what rescues identifiers, codes and figures — "SKU-2041",
+ * "Clase IV" — that the dense branch blurs together. In exchange it is blind to any paraphrase
+ * that shares no word with the text, and that is what the dense branch covers.
+ */
 @ApplicationScoped
 public class LexicalSearch {
 
     private static final Logger log = LoggerFactory.getLogger(LexicalSearch.class);
 
-    /** Solo letras (tildes y ñ incluidas) y números: descarta de un golpe todos
-     *  los símbolos reservados por la sintaxis de RediSearch (¿ ? : | - @ " ...). */
+    /** Letters (accents and ñ included) and digits only: drops in one go every symbol RediSearch
+     *  reserves for its query syntax (¿ ? : | - @ " ...). */
     private static final Pattern TERM = Pattern.compile("[\\p{L}\\p{N}]+");
 
-    /** Campos que se piden a Redis: el text y todo lo necesario para la cita. */
+    /** Fields asked of Redis: the text itself, plus everything the citation needs. */
     private static final List<String> RETURNED_FIELDS = List.of("scalar", "file", "page", "nombre", "file_name", "fila");
     /**
-     * Palabras funcionales del español. RediSearch elimina automáticamente las
-     * palabras vacías del INGLÉS: su lista por defecto no conoce "del", "los" ni
-     * "que", de modo que se buscarían como cualquier otro término y, al unir la
-     * query con OR, aparecen en casi todos los chunks e inundan el orden
-     * de relevancia (observado: "Por qué los manuscritos del mar muerto son
-     * importantes" devolvía una fila de refrigeradores por coincidir en "por").
+     * Spanish function words. RediSearch strips the ENGLISH ones on its own and its default list
+     * knows nothing about "del", "los" or "que", so without this set they would be searched like
+     * any other term. Why that wrecks the ranking is in toRediSearchQuery.
      */
     private static final Set<String> STOP_WORDS = Set.of(
-            // artículos, preposiciones y conjunciones
+            // --- Spanish: articles, prepositions and conjunctions
             "de", "del", "la", "el", "los", "las", "lo", "al", "un", "una", "unos", "unas",
             "en", "por", "para", "con", "sin", "sobre", "entre", "desde", "hasta", "según",
             "y", "o", "u", "ni", "pero", "aunque", "porque", "si", "no", "ya", "también",
-            // interrogativos
+            // --- Spanish: question words
             "que", "qué", "cual", "cuál", "cuáles", "cuanto", "cuánto", "cuánta", "cuántos",
             "cuando", "cuándo", "como", "cómo", "donde", "dónde", "quien", "quién","cuántas",
             "cuantos","cuantas",
-            // verbos y muletillas de pregunta
+            // --- Spanish: verbs and filler that only ever show up in questions
             "es", "son", "ser", "está", "están", "hay", "tiene", "tienen", "dice", "dicen",
             "dime", "dame", "decir", "saber", "sabes", "hace", "hacen", "puede", "pueden",
             "vale", "valen", "cuesta", "cuestan", "sale", "salen",
-            // otros muy frecuentes
+            // --- Spanish: other very frequent words
             "me", "te", "se", "le", "les", "nos", "mi", "mis", "tu", "tus", "su", "sus",
             "este", "esta", "esto", "estos", "estas", "ese", "esa", "eso", "muy", "más",
             "menos", "todo", "toda", "todos", "todas", "algo", "nada", "otro", "otra",
-            // interrogatives
+            // --- English: question words
             "what", "which", "how", "where", "when", "who", "why",
-            // question verbs and fillers that never appear in the data
+            // --- English: question verbs and filler that never appear in the data
             "does", "do", "did", "is", "are", "was", "were", "can", "could",
             "say", "says", "tell", "give", "show", "much", "many", "there", "about", "with", "from", "into",
             "cost","costs","long"
@@ -67,35 +73,34 @@ public class LexicalSearch {
     @ConfigProperty(name = "rag.redis.index", defaultValue = "embedding-index")
     String index;
     /**
-     * Lo que devuelve una búsqueda léxica: los chunks encontrados y la
-     * CONSULTA que realmente se envió a RediSearch.
+     * What a lexical search returns: the chunks it found and the QUERY actually sent to
+     * RediSearch.
      *
-     * La query forma parte del resultado porque quien llama la necesita para
-     * el log: es el único dato que explica por qué la búsqueda encontró lo que
-     * encontró. La alternativa —recalcularla fuera— obligaría a ejecutar el
-     * saneador dos veces y a exponer un detalle interno de esta clase.
+     * The query is part of the result because the caller needs it for the log — it is the only
+     * thing that explains why the search found what it found. Recomputing it outside would mean
+     * running the sanitiser twice and exposing an internal detail of this class.
      */
     public record LexicalResult(String query, List<Chunk> chunks) {
         static LexicalResult empty(String query) {
             return new LexicalResult(query, List.of());
         }
     }
-    /** Una palabra de 4 letras o más. */
+    /** A word of four letters or more. */
     private static final Pattern CONTENT_WORD = Pattern.compile("\\p{L}{4,}");
-    /** Un término que contiene dígitos: un identificador, un código, una cifra. */
+    /** A term with digits in it: an identifier, a code, a figure. */
     private static final Pattern HAS_DIGIT = Pattern.compile("\\p{N}");
 
     /**
-     * The lexical branch abstains when the query cannot be a useful literal search.
+     * Conjunctive search with progressive relaxation.
      *
-     * The dangerous case is a SINGLE bare term: "y el 7?" yields the query "7", and a lone
-     * digit matches hundreds of prices, identifiers and week numbers across the corpus.
+     * AND buys precision, but it is brittle: one term missing from the index kills the whole
+     * query. Measured: "¿Cuál es el precio del SKU-2041?" produces "precio SKU 2041" and returns
+     * ZERO, because the warehouse is in English and no chunk holds "precio" and "SKU" at the same
+     * time — dragging down "SKU" and "2041", which would have found the row on their own.
      *
-     * Two or more terms already make a conjunctive search meaningful even when none of them is
-     * a long word. Measured: the query "SKU 2041" was rejected by the previous rule (it has no
-     * word of four letters or more) even though the lexical branch is the ONLY one able to
-     * resolve an identifier — for that same query the dense branch ranked the exact row 4th out
-     * of 9, inside a score range of 0.018.
+     * When the full conjunction comes back empty, one term is dropped and it runs again. It only
+     * relaxes on EMPTY: if the full AND found something, that result is always the better one and
+     * is left alone, so the happy path never pays for an extra query.
      */
     static boolean isWorthSearching(String query) {
         if (query.isBlank()) {
@@ -127,12 +132,12 @@ public class LexicalSearch {
             return new LexicalResult(query, chunks);
         }
 
-        // La conjunción completa ha devuelto cero: solo AHORA se relaja.
+        // The full conjunction came back empty: only NOW do we relax it.
         List<String> terms = new ArrayList<>(List.of(query.split("\\s+")));
         while (terms.size() > 2) {
             int drop = termToDrop(terms);
             if (drop < 0) {
-                return LexicalResult.empty(query);      // hay un identificador que no existe
+                return LexicalResult.empty(query);      // an identifier that is not in the corpus
             }
             terms.remove(drop);
             String relaxed = String.join(" ", terms);
@@ -142,21 +147,23 @@ public class LexicalSearch {
                 return new LexicalResult(relaxed, chunks);
             }
         }
-        // Con menos de dos términos no se busca: una palabra suelta procedente de una relajación
-        // devuelve cualquier cosa ("capital Mongolia" acabaría buscando "capital").
+        // Below two terms we stop: a single word left over from relaxing returns anything at all
+        // ("capital Mongolia" would end up searching for "capital").
         return LexicalResult.empty(query);
     }
 
     /**
-     * Índice del término que debe caer, o -1 si NO hay que relajar.
+     * Index of the term that has to go, or -1 when nothing should be dropped.
      *
-     * 1. Si falta del índice un término CON DÍGITOS, no se relaja: "SKU-9999" no está en el corpus,
-     *    así que la pregunta no tiene respuesta y quitarlo la convertiría en otra pregunta. Sin esta
-     *    regla, "price SKU 9999" acabaría devolviendo las 25 filas del almacén.
-     * 2. Si falta un término SIN dígitos ("holds", "sepas", "quedan"), ese es el culpable: es una
-     *    palabra de la pregunta, no del corpus, y está anulando la conjunción sin aportar nada.
-     * 3. Si no falta ninguno, cae el más frecuente, que es el menos discriminante. Es el caso de
-     *    "precio SKU 2041": los tres existen, pero "precio" está en 211 fragmentos y "2041" en uno.
+     * 1. If a term WITH DIGITS is missing from the index, do not relax: "SKU-9999" is not in the
+     *    corpus, so the question has no answer, and dropping it turns it into a different
+     *    question. Without this rule, "price SKU 9999" would come back with all 25 warehouse rows.
+     * 2. If a term WITHOUT digits is missing ("holds", "sepas", "quedan"), that one is the
+     *    culprit: it is a word from the question, not from the corpus, and it is killing the
+     *    conjunction without contributing anything.
+     * 3. If none is missing, the most frequent one goes, being the least discriminating. That is
+     *    the "precio SKU 2041" case: all three exist, but "precio" is in 211 chunks and "2041"
+     *    in one.
      */
     private int termToDrop(List<String> terms) {
         int absentWord = -1;
@@ -168,13 +175,13 @@ public class LexicalSearch {
             long frequency = documentFrequency(term);
             if (frequency == 0) {
                 if (HAS_DIGIT.matcher(term).find()) {
-                    return -1;                          // regla 1: no se relaja
+                    return -1;                          // rule 1: do not relax
                 }
                 if (absentWord < 0) {
-                    absentWord = i;                     // regla 2
+                    absentWord = i;                     // rule 2
                 }
             } else if (frequency > mostFrequentCount) {
-                mostFrequentCount = frequency;          // regla 3
+                mostFrequentCount = frequency;          // rule 3
                 mostFrequent = i;
             }
         }
@@ -182,9 +189,9 @@ public class LexicalSearch {
     }
 
     /**
-     * Cuántos fragmentos contienen el término. LIMIT 0 0 pide solo el recuento, sin traer documentos.
-     * Ante un fallo devuelve el máximo: un problema de Redis no debe hacer que el sistema se abstenga,
-     * así que ese término se trata como el más frecuente y es el primero en caer.
+     * How many chunks contain the term. LIMIT 0 0 asks for the count only, without fetching a
+     * single document. On failure it returns the maximum: a Redis problem must not make the
+     * system abstain, so that term is treated as the most frequent one and is the first to fall.
      */
     private long documentFrequency(String term) {
         try {
@@ -194,7 +201,7 @@ public class LexicalSearch {
         }
     }
 
-    /** La búsqueda de verdad, extraída para poder reintentarla con la consulta relajada. */
+    /** The actual search, pulled out so the relaxed query can reuse it. */
     private List<Chunk> run(String query, int limit) {
         try {
             QueryArgs args = new QueryArgs().limit(0, limit);
@@ -210,30 +217,27 @@ public class LexicalSearch {
         }
     }
     /**
-     * Pregunta en lenguaje natural -> query de RediSearch.
+     * Natural-language question -> RediSearch query.
      *
-     * Dos decisiones que conviene entender:
+     * Two decisions worth understanding:
      *
-     * 1) NO se filtra por longitud. Los términos más discriminantes de una
-     *    búsqueda literal son a menudo los más cortos: "IV", "5", un código de
-     *    referencia. Descartarlos por cortos elimina justo aquello que aporta la
-     *    búsqueda léxica frente a la semántica.
-     * 2) SÍ se filtran las palabras funcionales del español, porque RediSearch
-     *    solo conoce las inglesas (ver VACIAS).
+     * 1) Length is NOT filtered. The most discriminating terms of a literal search are often the
+     *    shortest ones: "IV", "5", a reference code. Throwing them out for being short throws out
+     *    exactly what the lexical branch adds over the semantic one.
+     * 2) Spanish function words ARE filtered, because RediSearch only knows the English ones
+     *    (see STOP_WORDS).
      *
-     * Los términos se unen con AND (en RediSearch el espacio es intersección):
-     * el chunk debe contener TODOS los términos. Se probó primero con OR y
-     * era inservible: cualquier palabra frecuente arrastraba chunks sin
-     * relación —"por qué los manuscritos del mar muerto son importantes" devolvía
-     * una fila de refrigeradores por coincidir en "por"— y esos falsos positivos
-     * llegaban a la fusión con puesto alto.
+     * Terms are joined with AND — in RediSearch a space means intersection — so a chunk has to
+     * contain ALL of them. OR was tried first and was useless: any frequent word dragged in
+     * unrelated chunks ("por qué los manuscritos del mar muerto son importantes" returned a row
+     * of refrigerators because it matched "por") and those false positives reached the fusion
+     * with a high rank.
      *
-     * El AND es más frágil (un término ausente del índice anula la query
-     * entera) pero es la semántica que corresponde a una búsqueda literal: si se
-     * quisieran candidatos amplios, ya está la rama densa para eso. La fragilidad
-     * es justo lo que hace imprescindible el filtro de palabras vacías de abajo:
-     * con AND, exigir "de" o "que" en el chunk sería una condición gratuita
-     * que puede dejar fuera el resultado bueno.
+     * AND is more brittle — one term missing from the index kills the query — but it is the
+     * semantics a literal search calls for: if broad candidates were the goal, the dense branch
+     * is already there for that. That brittleness is precisely what makes the stop-word filter
+     * indispensable: under AND, demanding "de" or "que" is a free condition that can leave the
+     * good result out.
      */
     static String toRediSearchQuery(String question) {
         if (question == null) {
@@ -247,7 +251,7 @@ public class LexicalSearch {
     }
 
 
-    /** Un documento de RediSearch -> Chunk. Devuelve null si no trae text. */
+    /** A RediSearch document -> Chunk. Returns null when it carries no text. */
     private static Chunk toChunk(Document document) {
         String text = property(document, "scalar");
         if (text == null || text.isBlank()) {
@@ -265,7 +269,7 @@ public class LexicalSearch {
         return new Chunk(text, Sources.format(metadata));
     }
 
-    /** Lee una propiedad del documento; null si no viene (p. ej. 'page' en un CSV). */
+    /** Reads a property off the document; null when it is not there (e.g. 'page' on a CSV row). */
     private static String property(Document document, String name) {
         Document.Property p = document.property(name);
         return (p == null) ? null : p.asString();

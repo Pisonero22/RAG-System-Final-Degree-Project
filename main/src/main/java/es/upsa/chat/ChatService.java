@@ -9,7 +9,6 @@ import es.upsa.ai.RagAssistant;
 import dev.langchain4j.data.message.UserMessage;
 
 import es.upsa.search.RagRetriever;
-import es.upsa.memory.InMemoryChatMemoryStore;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.Config;
@@ -25,6 +24,7 @@ import java.util.regex.Pattern;
 public class ChatService {
 
     private static final Logger log = LoggerFactory.getLogger(ChatService.class);
+    /** Three exchanges. Enough for a follow-up to make sense, short enough to stay cheap. */
     private static final int HISTORY_MESSAGES = 6;
 
     @Inject
@@ -49,18 +49,27 @@ public class ChatService {
 
     private static final Pattern FOLLOW_UP_START =
             Pattern.compile("^\\s*(y|and|¿y|pero|but|then|entonces)\\b", Pattern.CASE_INSENSITIVE);
-
+    /** A code: two or more letters glued to two or more digits, like "SKU-2041". */
     private static final Pattern IDENTIFIER = Pattern.compile("\\p{L}{2,}[-_]?\\d{2,}");
 
     public record Answer(String text, String model, long millis,
                          List<RagRetriever.Retrieved> sources) {
 
-        /** Respuesta que no ha pasado por el modelo: mensaje vacío, bloqueo o error. */
+        /** An answer that never reached a model: empty message, block, or error. */
         static Answer plain(String text) {
             return new Answer(text, null, 0L, List.of());
         }
     }
 
+
+    /**
+     * The conversational pipeline: guardrail, query rewriting, retrieval, generation.
+     *
+     * Every stage after the guardrail degrades instead of failing. A rewriter that breaks, a Redis
+     * that is down or a lexical branch that returns nothing all end with an answer — a worse one —
+     * and never with an error. The only stage that stops a message is the guardrail, and that is
+     * why it runs first.
+     */
     public Answer chat(String username, String message, String modelProvider){
         if (message == null || message.isBlank()) {
             return Answer.plain("No he recibido ningún mensaje. Escribe algo y te respondo.");
@@ -71,8 +80,8 @@ public class ChatService {
         String question = message.trim();
 
 
-        // 0) GUARDRAIL EN LA PUERTA: antes de gastar el reescritor (un LLM) y la
-        //    búsqueda vectorial en un mensaje que vamos a rechazar.
+        // 0) Guardrail at the door, before spending the rewriter (an LLM call) and the vector
+        //    search on a message we are going to reject anyway.
         if (isInjection(username, question)) {
             log.info("[{}] mensaje bloqueado por el detector de prompt injection", username);
             return Answer.plain("Mensaje bloqueado: se ha detectado un posible intento de prompt injection.");
@@ -80,18 +89,18 @@ public class ChatService {
 
 
         try {
-            // 1) Reescritura de la query con historial (solo para la BÚSQUEDA;
-            //    el modelo del chat recibe la question original del usuario).
+            // 1) Rewrite the query using the history — for the SEARCH only. The chat model gets
+            //    the user's original question.
             String query = buildSearchQuery(username, question);
 
-            // 2) Recuperación explícita del context (RAG).
+            // 2) Explicit context retrieval (RAG).
             RagRetriever.RetrievedContext context = ragRetriever.retrieveContext(query);
-            // 3) Generación: el context viaja en el system message.
+            // 3) Generation: the context travels in the system message.
             long t0 = System.nanoTime();
-            // El modelo recibe la question ORIGINAL, pero la búsqueda pudo hacerse con
-            // una query reescrita. Si difieren, se le indica: sin esa pista, ante un
-            // context que no encaja con su lectura de la question aplica la regla 4
-            // (ignorar el context y responder de memoria), y se pierde la recuperación.
+            // The model gets the ORIGINAL question, but the search may have run on a rewritten
+            // one. When they differ we say so: without that hint, a context that does not match
+            // its reading of the question triggers rule 4 — ignore the context, answer from
+            // memory — and the whole retrieval is thrown away.
             String interpretation = query.equals(question) ? ""
                     : "La búsqueda del context se ha realizado interpretando la question como: \""
                     + query + "\". Si el context encaja con esa interpretación, úsalo.";
@@ -122,10 +131,9 @@ public class ChatService {
     }
 
     /**
-     * Devuelve la query para la búsqueda vectorial. Si hay historial y la
-     * reescritura está activa, condensa la question; ante CUALQUIER problema,
-     * fallback a la question original: esta etapa es una mejora, nunca un
-     * punto de fallo.
+     * The query for the vector search. With history, and with rewriting enabled, it condenses the
+     * question; on ANY problem it falls back to the original one. This stage is an improvement,
+     * never a point of failure.
      */
     private String buildSearchQuery(String username, String question) {
         if (!rewriteEnabled) {
@@ -133,7 +141,7 @@ public class ChatService {
         }
         String history = flattenHistory(username);
         if (history.isBlank()) {
-            // Primera question: no hay nada que condensar (y nos ahorramos la llamada).
+            // First question of the conversation: nothing to condense, and we save the call.
             return question;
         }
         if (!looksElliptical(question)) {
@@ -149,13 +157,13 @@ public class ChatService {
                 return question;
             }
             rewritten = rewritten.strip();
-            // Debe devolver UNA query corta. Si se pone a conversar, no nos fiamos.
+            // It has to come back as ONE short query. If it starts chatting, we do not trust it.
             if (rewritten.contains("\n") || rewritten.length() > 300) {
                 log.debug("[{}] reescritura descartada ({} ms, formato inesperado)",
                         username, rewriteMs);
                 return question;
             }
-            // Cambios solo cosméticos: se usa la question ORIGINAL.
+            // Cosmetic change only: keep the ORIGINAL question.
             if (differsOnlyInPunctuation(rewritten, question)) {
                 log.debug("[{}] reescritura cosmética descartada ({} ms): \"{}\"",
                         username, rewriteMs, rewritten);
@@ -173,10 +181,9 @@ public class ChatService {
     }
 
     /**
-     * Últimos mensajes de la conversación en text plano. Se filtra el
-     * SystemMessage (contiene el contexto RAG del turno anterior, que aquí
-     * solo metería ruido) y se recorta cada mensaje para que el prompt del
-     * reescritor sea pequeño y rápido.
+     * The last few messages as plain text. The SystemMessage is filtered out — it carries the RAG
+     * context of the previous turn, which is nothing but noise here — and every message is cut
+     * short so the rewriter's prompt stays small and fast.
      */
     private String flattenHistory(String username) {
         List<ChatMessage> messages = memoryStore.getMessages(username);
@@ -195,7 +202,7 @@ public class ChatService {
         return sb.toString();
     }
 
-    /** Aplana y recorta un mensaje para el prompt del reescritor. */
+    /** Flattens and cuts a message down for the rewriter's prompt. */
     private static String truncate(String text) {
         if (text == null) {
             return "";
@@ -204,26 +211,33 @@ public class ChatService {
         return flat.length() <= 250 ? flat : flat.substring(0, 250) + "...";
     }
     /**
-     * ¿La reescritura solo cambia signos de puntuación, tildes o mayúsculas?
+     * Does the rewrite only change punctuation, accents or case?
      *
-     * Motivo medido: añadir un punto final a "Hola" desplaza su embedding lo
-     * justo para cruzar el umbral de similitud y recuperar 5 chunks de
-     * ruido (patentes, Plutón, perímetros de seguridad). Observado tres veces.
-     * Como es un criterio exacto, se resuelve en código y no pidiéndoselo al
-     * modelo en el prompt.
+     * Measured: adding a full stop to "Hola" moves its embedding just enough to cross the
+     * similarity threshold and pull in 5 chunks of noise — patents, Pluto, security perimeters.
+     * Seen three times. The criterion is exact, so it is settled in code instead of being asked
+     * of the model in the prompt.
      */
     static boolean differsOnlyInPunctuation(String rewritten, String original) {
         return skeleton(rewritten).equals(skeleton(original));
     }
 
-    /** El text reducido a letras y dígitos, sin tildes ni mayúsculas. */
+    /** The text reduced to letters and digits: no accents, no case. */
     static String skeleton(String text) {
         return Normalizer.normalize(text, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")               // fuera las tildes
-                .replaceAll("[^\\p{L}\\p{N}]", "")      // fuera signos y espacios
+                .replaceAll("\\p{M}", "")               // accents out
+                .replaceAll("[^\\p{L}\\p{N}]", "")      // punctuation and spaces out
                 .toLowerCase();
     }
-
+    /**
+     * Is this message worth handing to the rewriter? Short ones, and ones opening with "y",
+     * "and", "but"..., usually lean on the previous turn.
+     *
+     * A message carrying an identifier never does, whatever its length. Measured: "SKU-2041" was
+     * being treated as elliptical and rewritten into a question about its price — an intent
+     * imported from the previous turn — which took retrieval from 9D+1L with the right row first
+     * to 1D+0L with the wrong one.
+     */
     static boolean looksElliptical(String message) {
         if (IDENTIFIER.matcher(message).find()) {
             return false;

@@ -3,19 +3,18 @@ package es.upsa.search;
 import java.util.Map;
 
 /**
- * Formatea la procedencia de un chunk a partir de sus metadatos.
+ * Formats where a chunk came from, out of its metadata.
  *
- * Sin estado y sin dependencias, así que no es un bean CDI: es una función.
- * La usan las dos búsquedas, de modo que un PDF se cita igual venga de donde
- * venga, y además queda aislada para poder probarla sin levantar la aplicación.
+ * Stateless and dependency-free, so it is not a CDI bean: it is a function. Both searches use it,
+ * which is what makes a PDF get cited the same way whichever branch found it, and it can be
+ * tested without starting the application.
  *
- * Acepta Map<String,?> porque los metadatos llegan de dos sitios distintos:
- * de langchain4j (Metadata.toMap(), con valores tipados) y de RediSearch
- * (campos devueltos por FT.SEARCH, siempre cadenas).
+ * It takes {@code Map<String,?>} because the metadata arrives from two places: langchain4j
+ * (Metadata.toMap(), typed values) and RediSearch (FT.SEARCH fields, always strings).
  */
 public final class Sources {
 
-    private Sources() {}   // clase de utilidad: no se instancia
+    private Sources() {}
 
     public static String format(Map<String, ?> metadata) {
         if (metadata.containsKey("file")) {                       // PDF
@@ -35,13 +34,13 @@ public final class Sources {
         return "unknown source";
     }
 
-    /** "bd49ab9c-..._Productos.csv" -> "Productos.csv" (prefijo UUID de las subidas). */
+    /** "bd49ab9c-..._Productos.csv" -> "Productos.csv": strips the UUID prefix uploads add. */
     private static String cleanName(Object value) {
         return String.valueOf(value).replaceFirst("^[0-9a-fA-F-]{36}_", "");
     }
 
-    /** Los números pueden llegar como Double (16.0) desde langchain4j o como
-     *  cadena ("16") desde RediSearch: en ambos casos se muestran sin decimales. */
+    /** Numbers arrive as a Double (16.0) from langchain4j or as a String ("16") from RediSearch.
+     *  Either way they are shown without decimals. */
     private static String number(Object value) {
         return (value instanceof Number n) ? String.valueOf(n.longValue()) : String.valueOf(value);
     }

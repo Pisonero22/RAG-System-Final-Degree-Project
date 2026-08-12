@@ -19,7 +19,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-
+/**
+ * One CSV row -> one document. Rows are ingested without a splitter, so a row is never cut in
+ * half and a price never ends up separated from the product it belongs to.
+ */
 @ApplicationScoped
 public class CsvDocumentLoader implements DocumentLoader {
 
@@ -58,7 +61,7 @@ public class CsvDocumentLoader implements DocumentLoader {
                 .setHeader()
                 .setSkipHeaderRecord(true)
                 .build();
-        // Sin el prefijo UUID de la subida: "bd49ab9c-..._Productos.csv" -> "Productos.csv"
+        // Drops the UUID prefix uploads add: "bd49ab9c-..._Productos.csv" -> "Productos.csv"
         String cleanName = csvPath.getFileName().toString().replaceFirst("^[0-9a-fA-F-]{36}_", "");
 
         List<Document> documents = new ArrayList<>();
@@ -68,18 +71,19 @@ public class CsvDocumentLoader implements DocumentLoader {
             for (CSVRecord record : parser) {
                 try{
 
-                // Metadatos mínimos: fichero y fila. Las columnas van solo en el TEXTO.
+                    // Minimal metadata: file and row. The columns go into the TEXT only, which is the
+                    // field both searches actually look at.
                 Map<String, Object> fields = new LinkedHashMap<>();
                 fields.put("nombre", cleanName);
                 fields.put("fila", rowNum);
                 StringBuilder text = new StringBuilder();
                     for (String header : parser.getHeaderNames()) {
                         String value = record.get(header);
-                        // Los guiones bajos de las cabeceras ("ID_Producto", "Precio_Base_EUR")
-                        // no son separadores para RediSearch: la cabecera queda como un único
-                        // término ("precio_base_eur") y palabras como "precio" o "producto" se
-                        // vuelven imposibles de encontrar con la búsqueda léxica. Se sustituyen
-                        // por espacios, que además mejora ligeramente el embedding.
+                        // Underscores in the headers ("ID_Producto", "Precio_Base_EUR") are not
+                        // separators for RediSearch: the whole header lands as a single term
+                        // ("precio_base_eur") and words like "precio" or "producto" become
+                        // impossible to reach with the lexical search. Swapping them for spaces
+                        // also nudges the embedding slightly in the right direction.
                         text.append(header.replace('_', ' ')).append(": ").append(value).append(" \n ");
                     }
 

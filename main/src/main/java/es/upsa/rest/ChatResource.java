@@ -21,11 +21,12 @@ public class ChatResource {
     Config config;
 
     /**
-     * Modelos reales configurados en cada slot, para que la UI muestre
-     * etiquetas verídicas (si OLLAMA_CHAT_MODEL cambia el modelo del slot
-     * 'llama', el desplegable lo refleja sin tocar el HTML). Público a
-     * propósito: la UI lo necesita antes de conectar y solo expone
-     * identificadores de modelo, ningún secreto.
+     * The real model configured in each slot, so the UI can show honest labels: if
+     * OLLAMA_CHAT_MODEL changes the model behind the 'llama' slot, the dropdown follows without
+     * anyone touching the HTML.
+     *
+     * Public on purpose. The UI needs it before connecting, and all it gives away is model
+     * identifiers — no secrets.
      */
     @GET
     @Path("/models")

@@ -1,8 +1,7 @@
-package es.upsa.upload;
+package es.upsa.ingestion;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.jboss.resteasy.reactive.RestForm;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -38,7 +37,8 @@ public class FileUploadService {
         if (targetDir == null) {
             throw new IllegalArgumentException("Extensión no válida");
         }
-
+        // A .pdf extension proves nothing. Check the header, and push the bytes back so the copy
+        // below still writes the complete file.
         PushbackInputStream input = new PushbackInputStream(content, 5);
         if ("pdf".equals(ext)) {
             byte[] magicBytes = input.readNBytes(5);
@@ -70,9 +70,8 @@ public class FileUploadService {
 
 
     private String sanitizeFileName(String fileName) {
-        // Se queda solo con el nombre base, ignorando cualquier ruta que venga incluida
+        // Base name only: a browser can send "../../etc/passwd" as the file name.
         String base = Paths.get(fileName).getFileName().toString();
-        // Solo permite alfanuméricos, score, guiones y guion bajo
         String sanitized = base.replaceAll("[^a-zA-Z0-9._-]", "_");
         if (sanitized.isBlank() || sanitized.equals(".") || sanitized.equals("..")) {
             throw new IllegalArgumentException("Nombre de fichero no válido");
@@ -88,17 +87,17 @@ public class FileUploadService {
         };
     }
 
-    private String getExtension(String nombreArchivo) {
-        int dotIndex = nombreArchivo.lastIndexOf('.');
-        return (dotIndex > 0) ? nombreArchivo.substring(dotIndex + 1) : "";
+    private String getExtension(String fileName) {
+        int dotIndex = fileName.lastIndexOf('.');
+        return (dotIndex > 0) ? fileName.substring(dotIndex + 1) : "";
     }
     public int deleteUploads() throws IOException {
         int deletedCount = 0;
         for (Path dir : List.of(txtDir, csvDir, pdfDir)) {
             Path uploads = dir.resolve("uploads");
             if (!Files.isDirectory(uploads)) continue;
-            try (Stream<Path> archivos = Files.list(uploads)) {
-                for (Path p : archivos.filter(Files::isRegularFile).toList()) {
+            try (Stream<Path> files = Files.list(uploads)) {
+                for (Path p : files.filter(Files::isRegularFile).toList()) {
                     Files.delete(p);
                     deletedCount++;
                 }

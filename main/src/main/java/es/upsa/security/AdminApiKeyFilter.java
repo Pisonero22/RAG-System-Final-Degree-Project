@@ -10,7 +10,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-
+/** Marks a resource or method as guarded by AdminApiKeyFilter. */
 @Provider
 @AdminEndpoint
 @Priority(Priorities.AUTHENTICATION)
@@ -22,6 +22,8 @@ public class AdminApiKeyFilter implements ContainerRequestFilter {
     @Override
     public void filter(ContainerRequestContext ctx) {
         String key = ctx.getHeaderString("X-API-KEY");
+        // Constant-time comparison on purpose: String.equals bails out at the first different
+        // byte, which leaks the key one character at a time to anyone timing the responses.
         if (key == null || !MessageDigest.isEqual(
                 key.getBytes(StandardCharsets.UTF_8),
                 expectedKey.getBytes(StandardCharsets.UTF_8))) {

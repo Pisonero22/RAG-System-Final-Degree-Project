@@ -9,16 +9,15 @@ public class TextNormalizer {
     private TextNormalizer() {}
 
     /**
-     * Rodea los saltos de línea con espacios.
+     * Puts a space on each side of every line break.
      *
-     * RediSearch no considera el salto de línea un separador de términos: en
-     * "utilizar\ntrajes" ambas palabras quedan fundidas en un único término y ninguna
-     * de las dos es buscable. Medido en este corpus, eso dejaba fuera del índice léxico
-     * en torno al 10% de las palabras (una línea de PDF son ~14 palabras, y cada salto
-     * inutiliza las dos que tiene a los lados).
+     * RediSearch does not treat a line break as a term separator: in "utilizar\ntrajes" both
+     * words end up fused into one term and neither of them is searchable. Measured on this
+     * corpus, that kept around 10 % of the words out of the lexical index — a PDF line is about
+     * 14 words, and every break ruins the two sitting either side of it.
      *
-     * DEBE aplicarse DESPUÉS de segmentar: el segmentador recursivo vuelve a unir sus
-     * trozos con su propio separador y deshace cualquier limpieza hecha en el loader.
+     * Must run AFTER the splitter. The recursive splitter joins its pieces back with its own
+     * separator and undoes any clean-up done in the loader.
      */
     public static String normalizeLineBreaks(String text) {
         return text.replaceAll("[ \\t]*\\r?\\n[ \\t]*", " \n ");

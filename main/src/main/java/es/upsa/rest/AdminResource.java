@@ -1,6 +1,6 @@
 package es.upsa.rest;
 
-import es.upsa.upload.FileUploadService;
+import es.upsa.ingestion.FileUploadService;
 import es.upsa.ingestion.RedisStorage;
 import es.upsa.security.AdminEndpoint;
 import es.upsa.ingestion.DocumentStore;
@@ -69,8 +69,8 @@ public class AdminResource {
         try {
             storage.ingestSingleFile(storedFile);
         } catch (Exception e) {
-            // El fileStream YA está en disco: si no se puede ingestar, se retira para que
-            // no ensucie las ingestas completas posteriores.
+            // The file is already on disk: if it cannot be ingested, take it back out so it does
+            // not pollute later full reingests.
             Files.deleteIfExists(storedFile);
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("El fileStream no se ha podido procesar y se ha descartado: " + e.getMessage())
@@ -96,7 +96,7 @@ public class AdminResource {
         try {
             storage.rebuildIndex();
         } catch (IllegalStateException e) {
-            // Los ficheros YA se han borrado: hay que avisar de que el índice quedó sin reconstruir.
+            // The files are already gone: the caller has to be told the index was left unrebuilt.
             return Response.status(Response.Status.CONFLICT)
                     .entity("Subidas eliminadas: " + deleted + ", pero hay un reindexado en curso "
                             + "y el índice NO se ha reconstruido. Pulsa Reset cuando termine.")

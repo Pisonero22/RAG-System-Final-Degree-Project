@@ -9,6 +9,18 @@ import io.quarkiverse.langchain4j.ModelName;
 import io.quarkiverse.langchain4j.RegisterAiService;
 import jakarta.enterprise.context.ApplicationScoped;
 
+
+/**
+ * The assistant that answers the user. Context arrives as a template variable of the system
+ * message and not through a RetrievalAugmentor, the reason is in RagRetriever.
+ *
+ * Rule 4 quotes RagRetriever.NO_CONTEXT word for word. The same string lives in two files and
+ * RagAssistantPromptTest is the only thing keeping them in sync.
+ *
+ * The prompt stays in Spanish on purpose: rule 7 is what makes the answer come back in the
+ * language of the user's message. Rewriting the prompt in English is a change of behaviour, not
+ * a translation, and it has to be measured again against the golden set.
+ */
 @RegisterAiService
 @ApplicationScoped
 public interface RagAssistant {

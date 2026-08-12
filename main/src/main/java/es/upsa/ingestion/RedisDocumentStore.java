@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+
+
 @ApplicationScoped
 @RedisStorage
 public class RedisDocumentStore implements DocumentStore {
@@ -60,7 +62,7 @@ public class RedisDocumentStore implements DocumentStore {
     RedisDataSource redis;
 
 
-
+    /** The corpus split by how it has to be indexed: CSV rows go in whole, prose gets chunked. */
     private record Corpus(List<Document> rows, List<Document> prose) {
         boolean empty() { return rows.isEmpty() && prose.isEmpty(); }
         int total()     { return rows.size() + prose.size(); }
@@ -68,21 +70,20 @@ public class RedisDocumentStore implements DocumentStore {
 
 
     /**
-     * Reset = borrar todas las claves de embeddings y reingestar.
+     * Reset = delete every embedding key and re-ingest.
      *
-     * AQUÍ YA NO SE HACE FT.DROPINDEX, y es importante entender por qué:
-     * la extensión de Redis solo crea el índice UNA vez, al arrancar la aplicación
-     * (en el constructor de RedisEmbeddingStore). Si tiras el índice en caliente,
-     * nada lo recrea, y todas las búsquedas fallan con "No such index" hasta el
-     * siguiente reinicio (verificado: es exactamente lo que pasó al usar /reset
-     * en mitad de una sesión).
+     * There is NO FT.DROPINDEX here any more, and it matters why: the Redis extension creates the
+     * index ONCE, when the application starts (in the RedisEmbeddingStore constructor). Drop the
+     * index while it is running and nothing recreates it — every search fails with "No such
+     * index" until the next restart. Verified: that is exactly what happened calling /reset in
+     * the middle of a session.
      *
-     * Borrar las claves es suficiente para "resetear" los datos: RediSearch
-     * des-indexa automáticamente las claves borradas y re-indexa las nuevas.
+     * Deleting the keys is enough to "reset" the data. RediSearch de-indexes deleted keys and
+     * indexes new ones on its own.
      *
-     * Caso aparte: si cambias de MODELO DE EMBEDDINGS o de DIMENSIÓN, el esquema
-     * del índice sí debe cambiar, y eso exige: parar la app -> redis-cli FLUSHALL
-     * -> arrancar (se recrea el índice con el esquema nuevo) -> POST /service/admin/reset.
+     * Different story if you change the EMBEDDING MODEL or the DIMENSION: the index schema has to
+     * change with it, and that means stop the app -> redis-cli FLUSHALL -> start again (the index
+     * is recreated with the new schema) -> POST /service/admin/reset.
      */
     @Override
     public void rebuildIndex() throws IOException {
@@ -90,13 +91,13 @@ public class RedisDocumentStore implements DocumentStore {
             throw new IllegalStateException("A reindex is already running");
         }
         try {
-            Corpus corpus = loadCorpus();          // 1) cargar y validar
+            Corpus corpus = loadCorpus();
             long t0 = System.nanoTime();
 
             if (corpus.empty()) {
                 log.warn("Reset CANCELADO: no se ha podido cargar ningún documento. "
                         + "El índice actual se mantiene intacto.");
-                return;                              //    mejor el índice viejo que ninguno
+                return;                              //    an old index beats no index
             }
             deleteAllEmbeddings();
             index(corpus);
@@ -120,7 +121,7 @@ public class RedisDocumentStore implements DocumentStore {
 
         var builder = ingestor();
         if (!isCsv) {
-            builder.documentSplitter(recursive(512, 128));   // CSV: 1 fila = 1 embedding
+            builder.documentSplitter(recursive(512, 128));   // a CSV row is already one embedding
         }
         builder.build().ingest(documents);
 
@@ -147,26 +148,24 @@ public class RedisDocumentStore implements DocumentStore {
     }
 
     private void index(Corpus corpus) {
-        // CSV: cada fila ya es un documento autocontenido -> SIN segmentador
+        // A CSV row is a self-contained document already: no splitter.
         if (!corpus.rows().isEmpty()) {
             ingestor().build().ingest(corpus.rows());
         }
-        // TXT y PDF: prose -> chunks con solape
+        // TXT and PDF: prose gets chunked, with overlap.
         if (!corpus.prose().isEmpty()) {
             ingestor().documentSplitter(recursive(512, 128)).build().ingest(corpus.prose());
         }
         log.info("Ingesta: {} rows CSV + {} docs de text/PDF", corpus.rows().size(), corpus.prose().size());
     }
     /**
-     * Ingestor común a los tres caminos.
+     * The ingestor shared by all three paths.
      *
-     * El transformador de segmentos aplica la separación de saltos DESPUÉS del
-     * segmentador, que es el único punto en el que el text ya no va a cambiar:
-     * el segmentador recursivo parte por párrafos y líneas y vuelve a unir los
-     * trozos con su propio separador, de modo que cualquier limpieza hecha en el
-     * loader queda deshecha para los documentos de prose. Los CSV no lo notaban
-     * porque se ingestan sin segmentador, y ese contraste es el que localizó el
-     * problema.
+     * The segment transformer applies the line-break fix AFTER the splitter, which is the only
+     * point where the text is not going to change again: the recursive splitter breaks on
+     * paragraphs and lines and then joins the pieces back with its own separator, so any clean-up
+     * done in the loader is undone for prose documents. CSVs never showed the problem because
+     * they are ingested without a splitter, and that contrast is what tracked it down.
      */
     private EmbeddingStoreIngestor.Builder ingestor() {
         return EmbeddingStoreIngestor.builder()

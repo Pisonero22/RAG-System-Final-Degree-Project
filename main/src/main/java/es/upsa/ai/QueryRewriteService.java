@@ -6,10 +6,11 @@ import io.quarkiverse.langchain4j.RegisterAiService;
 import jakarta.enterprise.context.ApplicationScoped;
 
 /**
- * Reescritura de query con historial ("query rewriting" / condensación).
- * Convierte seguimientos ("¿y cuánto cuesta?") en consultas autocontenidas
- * ("precio de la PlayStation 5") ANTES de la búsqueda vectorial.
- * Sin memoria y con el modelo por defecto (temp 0.0), igual que el detector.
+ * Query rewriting: turns a follow-up ("and how much is it?") into a self-contained query
+ * ("price of the PlayStation 5") BEFORE the vector search runs.
+ *
+ * No memory and the default model at temperature 0, same as the detector. This stage has to be
+ * cheap and repeatable, and ChatService falls back to the original question whenever it is not.
  */
 @RegisterAiService(chatMemoryProviderSupplier = RegisterAiService.NoChatMemoryProviderSupplier.class)
 @ApplicationScoped

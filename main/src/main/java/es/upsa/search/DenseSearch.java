@@ -16,13 +16,13 @@ import java.util.List;
 
 
 /**
- * Búsqueda semántica: convierte la pregunta en un vector con bge-m3 y devuelve
- * los chunks más cercanos por coseno.
+ * Semantic search: turns the question into a vector with bge-m3 and returns the closest chunks
+ * by cosine similarity.
  *
- * Encuentra por SIGNIFICADO: responde a paráfrasis y sinónimos aunque no
- * compartan ninguna palabra con el text. A cambio, la compresión a 1024
- * dimensiones difumina la literalidad ("Clase IV" y "Clase III" quedan casi en
- * el mismo punto), que es justo lo que cubre la búsqueda léxica.
+ * It finds by MEANING, so it answers paraphrases and synonyms that share no word with the text.
+ * The price is that squeezing everything into 1024 dimensions blurs the literal detail — "Clase
+ * IV" and "Clase III" end up almost in the same spot — and that is exactly what the lexical
+ * search is there to cover.
  */
 @ApplicationScoped
 public class DenseSearch {
@@ -41,11 +41,10 @@ public class DenseSearch {
     @ConfigProperty(name = "rag.retriever.candidates")
     int candidates;
     /**
-     * Calibrado con logs reales (score = (1+coseno)/2 con bge-m3): los relevantes
-     * claros están en 0,79-0,86 y la zona gris en 0,72-0,78. Se fijó en 0,75
-     * porque a 0,72 saludos como "Hola" recuperaban cinco chunks de ruido
-     * (patentes, Plutón, perímetros de seguridad) mientras que ninguna pregunta
-     * real perdía chunks: los aciertos entraban con 6, 4 y 3 candidatos.
+     * Calibrated on real logs (score = (1 + cosine) / 2 with bge-m3): the clearly relevant ones
+     * sit at 0.79-0.86 and the grey zone at 0.72-0.78. Fixed at 0.75 because at 0.72 a greeting
+     * like "Hola" pulled in five chunks of noise — patents, Pluto, security perimeters — while no
+     * real question lost anything: its hits came in with 6, 4 and 3 candidates.
      */
     @ConfigProperty(name = "rag.retriever.min-score", defaultValue = "0.75")
     double minScore;
@@ -57,21 +56,21 @@ public class DenseSearch {
         this.retriever = EmbeddingStoreContentRetriever.builder()
                 .embeddingModel(embeddingModel)
                 .embeddingStore(embeddingStore)
-                .maxResults(candidates)          // el recorte real lo decide quien llama
+                .maxResults(candidates)          // the real cut-off is the caller's decision
                 .minScore(minScore)
                 .build();
         log.info("Búsqueda densa lista: embeddings='{}' ({} dims), minScore={}",
                 embeddingModelId, dimension, minScore);
     }
 
-    /** Fragmentos ordenados por similitud, como máximo 'limit'. */
+    /** Chunks ordered by similarity, at most rag.retriever.candidates of them. */
     public List<Chunk> search(String question) {
         if (question == null || question.isBlank()) {
-            return List.of();       // Query.from("") lanza excepción
+            return List.of();       // Query.from("") throws
         }
         return retriever.retrieve(Query.from(question)).stream()
                 .map(c -> {
-                    Object score = c.metadata().get(ContentMetadata.SCORE);   // <-- el coseno
+                    Object score = c.metadata().get(ContentMetadata.SCORE);   // the cosine, 0..1
                     log.debug("  dense score={} {}", score,
                             Sources.format(c.textSegment().metadata().toMap()));
                     return new Chunk(c.textSegment().text(),

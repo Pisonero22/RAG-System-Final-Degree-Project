@@ -1,6 +1,5 @@
 package es.upsa.chat;
 
-import es.upsa.memory.InMemoryChatMemoryStore;
 import es.upsa.search.RagRetriever;
 import io.quarkus.websockets.next.*;
 import jakarta.inject.Inject;
@@ -8,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+
 
 @WebSocket(path = "/chat/{username}")
 public class ChatWebSocket {
@@ -22,23 +22,22 @@ public class ChatWebSocket {
     WebSocketConnection connection;
 
     /**
-     * El mensaje que viaja por el socket, en los dos sentidos.
+     * The message travelling over the socket, in both directions.
      *
-     * Los cuatro últimos campos solo los rellena el servidor: el navegador manda
-     * type, from, message y llm, y Jackson deja el resto a null/0 sin protestar.
-     * Se comparte el mismo record en ambas direcciones porque el alternativo
-     * —dos records casi idénticos— duplica el contrato y garantiza que algún día
-     * se desincronicen.
+     * The last four fields are filled in by the server only: the browser sends type, from,
+     * message and llm, and Jackson leaves the rest at null/0 without complaining. One record is
+     * shared for both directions because the alternative — two nearly identical records —
+     * duplicates the contract and guarantees they drift apart one day.
      *
-     * @param model   el modelo REAL que respondió, para enseñarlo en la burbuja
-     * @param millis  lo que tardó la generación
-     * @param sources los fragmentos recuperados, con origen y puntuación
+     * @param model   the REAL model that answered, to show it in the bubble
+     * @param millis  how long the generation took
+     * @param sources the retrieved chunks, with branch and score
      */
     public record ChatMessage(MessageType type, String from, String message, String llm,
                               boolean fromAssistant, String model, long millis,
                               List<RagRetriever.Retrieved> sources) {
 
-        /** Un mensaje sin traza de recuperación: eco del usuario, avisos y errores. */
+        /** A message with no retrieval trace: the user's echo, notices and errors. */
         static ChatMessage plain(MessageType type, String from, String message,
                                  String llm, boolean fromAssistant) {
             return new ChatMessage(type, from, message, llm, fromAssistant, null, 0L, List.of());
@@ -61,6 +60,7 @@ public class ChatWebSocket {
         return ChatMessage.plain(MessageType.USER_JOINED, connection.pathParam("username"), null,null,false);
     }
 
+    /** Closing the tab wipes the conversation. Why it is not persisted: InMemoryChatMemoryStore. */
     @OnClose
     public void onClose() {
         memoryStore.deleteMessages(connection.pathParam("username"));
