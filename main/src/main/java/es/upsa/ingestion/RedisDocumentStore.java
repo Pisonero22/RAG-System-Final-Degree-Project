@@ -116,7 +116,7 @@ public class RedisDocumentStore implements DocumentStore {
         if (isCsv)                        documents = csvLoader.loadFile(file);
         else if (fileName.endsWith(".pdf")) documents = pdfLoader.loadFile(file);
         else if (fileName.endsWith(".txt")) documents = txtLoader.loadFile(file);
-        else throw new IllegalArgumentException("Extensión no soportada: " + file);
+        else throw new IllegalArgumentException("Unsupported extension: " + file);
 
         var builder = ingestor();
         if (!isCsv) {

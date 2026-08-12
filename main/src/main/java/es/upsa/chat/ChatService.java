@@ -72,7 +72,7 @@ public class ChatService {
      */
     public Answer chat(String username, String message, String modelProvider){
         if (message == null || message.isBlank()) {
-            return Answer.plain("No he recibido ningún mensaje. Escribe algo y te respondo.");
+            return Answer.plain("I did not get any message. Write something and I will answer.");
         }
 
         ModelSlot slot =  ModelSlot.from(modelProvider);
@@ -84,7 +84,7 @@ public class ChatService {
         //    search on a message we are going to reject anyway.
         if (isInjection(username, question)) {
             log.info("[{}] message blocked by the prompt injection detector", username);
-            return Answer.plain("Mensaje bloqueado: se ha detectado un posible intento de prompt injection.");
+            return Answer.plain("Message blocked: this looks like a prompt injection attempt.");
         }
 
 
@@ -102,7 +102,7 @@ public class ChatService {
             // its reading of the question triggers rule 4 — ignore the context, answer from
             // memory — and the whole retrieval is thrown away.
             String interpretation = query.equals(question) ? ""
-                    : "La búsqueda del context se ha realizado interpretando la question como: \""
+                    : "La búsqueda del context se ha realizado interpretando la pregunta como: \""
                     + query + "\". Si el context encaja con esa interpretación, úsalo.";
 
             String answer = assistant.chat(slot.slot(), username,interpretation, context.text(), question);
@@ -112,7 +112,7 @@ public class ChatService {
 
         } catch (Exception e) {
             log.error("[{}] slot='{}' model='{}': failed to process the message", username, slot, modelTag, e);
-            return Answer.plain("Ha ocurrido un error procesando tu mensaje. Inténtalo de nuevo.");
+            return Answer.plain("Something went wrong while processing your message. Try again.");
         }
     }
     private boolean isInjection(String username, String question) {

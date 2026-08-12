@@ -28,7 +28,7 @@ public class AdminApiKeyFilter implements ContainerRequestFilter {
                 key.getBytes(StandardCharsets.UTF_8),
                 expectedKey.getBytes(StandardCharsets.UTF_8))) {
             ctx.abortWith(Response.status(Response.Status.UNAUTHORIZED)
-                    .entity("API key inválida o ausente")
+                    .entity("Missing or invalid API key")
                     .build());
         }
     }

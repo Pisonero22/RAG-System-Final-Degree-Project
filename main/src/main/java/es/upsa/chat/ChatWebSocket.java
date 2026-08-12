@@ -52,7 +52,7 @@ public class ChatWebSocket {
     public ChatMessage onError(Throwable t) {
         log.error("WebSocket error for user '{}'", connection.pathParam("username"), t);
         return ChatMessage.plain(MessageType.CHAT_MESSAGE, "system",
-                "Ha ocurrido un error. Vuelve a intentarlo.", null, true);
+                "Something went wrong. Try again.", null, true);
     }
 
     @OnOpen

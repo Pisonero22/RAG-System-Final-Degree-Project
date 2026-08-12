@@ -39,7 +39,7 @@ public class AdminResource {
         try {
             storage.rebuildIndex();
             return Response.ok()
-                    .entity("Storage reiniciada y documentos reingestados con éxito")
+                    .entity("Storage reset and documents re-ingested successfully")
                     .build();
         }catch (IllegalStateException e) {
             return Response.status(Response.Status.CONFLICT).entity(e.getMessage()).build();
@@ -63,7 +63,7 @@ public class AdminResource {
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
         } catch (IOException e) {
-            return Response.serverError().entity("Error al guardar el fileStream: " + e.getMessage()).build();
+            return Response.serverError().entity("Could not save the file:  " + e.getMessage()).build();
         }
 
         try {
@@ -73,10 +73,10 @@ public class AdminResource {
             // not pollute later full reingests.
             Files.deleteIfExists(storedFile);
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("El fileStream no se ha podido procesar y se ha descartado: " + e.getMessage())
+                    .entity("El fileStream could not process so was discarted: " + e.getMessage())
                     .build();
         }
-        return Response.ok("Archivo guardado e ingerido: " + storedFile.getFileName()).build();
+        return Response.ok("File saved and ingested: " + storedFile.getFileName()).build();
 
     }
 
@@ -90,7 +90,7 @@ public class AdminResource {
             deleted = fileUploadService.deleteUploads();
         } catch (IOException e) {
             log.error("Failed to delete uploads", e);
-            return Response.serverError().entity("Error al borrar las subidas: " + e.getMessage()).build();
+            return Response.serverError().entity("Could not delete the uploads: " + e.getMessage()).build();
         }
 
         try {
@@ -98,15 +98,15 @@ public class AdminResource {
         } catch (IllegalStateException e) {
             // The files are already gone: the caller has to be told the index was left unrebuilt.
             return Response.status(Response.Status.CONFLICT)
-                    .entity("Subidas eliminadas: " + deleted + ", pero hay un reindexado en curso "
-                            + "y el índice NO se ha reconstruido. Pulsa Reset cuando termine.")
+                    .entity("Uploads deleted: " + deleted + ", but a reindex is already running and the index has NOT been rebuilt. " +
+                            "Press Reset once it finishes.")
                     .build();
         } catch (IOException e) {
             log.error("Reindex after cleaning uploads failed", e);
             return Response.serverError()
-                    .entity("Subidas eliminadas: " + deleted + ", pero el reindexado falló: " + e.getMessage())
+                    .entity("Uploads deleted: " + deleted + ", but the reindex failed: " + e.getMessage())
                     .build();
         }
-        return Response.ok("Subidas eliminadas: " + deleted + ". Índice reconstruido desde el corpus base.").build();
+        return Response.ok("Uploads deleted: " + deleted + ". Index rebuilt from the base corpus.").build();
     }
 }

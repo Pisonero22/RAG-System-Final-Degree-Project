@@ -29,13 +29,13 @@ public class FileUploadService {
     public Path store(InputStream content, String fileName) throws IOException {
 
         if (content == null || fileName == null) {
-            throw new IllegalArgumentException("Faltan datos");
+            throw new IllegalArgumentException("Missing data");
         }
 
         String ext = getExtension(fileName).toLowerCase();
         Path targetDir = resolveDir(ext);
         if (targetDir == null) {
-            throw new IllegalArgumentException("Extensión no válida");
+            throw new IllegalArgumentException("Invalid extension");
         }
         // A .pdf extension proves nothing. Check the header, and push the bytes back so the copy
         // below still writes the complete file.
@@ -44,7 +44,7 @@ public class FileUploadService {
             byte[] magicBytes = input.readNBytes(5);
             input.unread(magicBytes);
             if (!new String(magicBytes, StandardCharsets.US_ASCII).startsWith("%PDF")) {
-                throw new IllegalArgumentException("El archivo tiene extensión .pdf pero no es un PDF válido");
+                throw new IllegalArgumentException("The file has a .pdf extension but is not a valid PDF");
             }
         }
 
@@ -57,7 +57,7 @@ public class FileUploadService {
 
 
         if (!target.startsWith(uploadsDir)) {
-            throw new IllegalArgumentException("Ruta de destino no válida");
+            throw new IllegalArgumentException("Invalid destination path");
         }
 
         try (OutputStream out = Files.newOutputStream(target)) {
@@ -74,7 +74,7 @@ public class FileUploadService {
         String base = Paths.get(fileName).getFileName().toString();
         String sanitized = base.replaceAll("[^a-zA-Z0-9._-]", "_");
         if (sanitized.isBlank() || sanitized.equals(".") || sanitized.equals("..")) {
-            throw new IllegalArgumentException("Nombre de fichero no válido");
+            throw new IllegalArgumentException("Invalid file name\"");
         }
         return sanitized;
     }
